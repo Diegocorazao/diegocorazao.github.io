@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Diego Corazao</title>
+<style>
+  :root {
+    --bg: #000000; --ink: #e8e8e8; --muted: #9a9a9a; --line: #2a2a2a;
+    --accent: #6fa8dc; --card: #111111;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    transition: background 0.2s, color 0.2s;
+  }
+  nav {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 20px 40px; border-bottom: 1px solid var(--line);
+  }
+  nav .name { font-size: 1.3rem; font-weight: 700; }
+  nav .links a {
+    color: var(--ink); text-decoration: none; margin-left: 28px; font-size: 0.95rem;
+  }
+  nav .links a:hover { color: var(--accent); }
+  .toggle {
+    margin-left: 28px; width: 40px; height: 22px; border-radius: 12px;
+    background: var(--line); position: relative; cursor: pointer; border: none;
+  }
+  .toggle .knob {
+    position: absolute; top: 2px; left: 2px; width: 18px; height: 18px;
+    border-radius: 50%; background: var(--accent); transition: left 0.2s;
+  }
+  html.dark .toggle .knob { left: 20px; }
+
+  main { max-width: 900px; margin: 0 auto; padding: 50px 40px 80px; }
+  .hero { display: flex; gap: 40px; align-items: flex-start; flex-wrap: wrap; }
+  .hero .text { flex: 1; min-width: 280px; }
+  .hero h1 { font-size: 2.4rem; margin: 0 0 16px; }
+  .hero p { line-height: 1.7; color: var(--ink); }
+  .hero a { color: var(--accent); text-decoration: none; }
+  .hero a:hover { text-decoration: underline; }
+
+  .photo {
+    width: 220px; height: 220px; border-radius: 10px; overflow: hidden;
+    background: var(--card); border: 1px solid var(--line);
+    display: flex; align-items: center; justify-content: center;
+    color: var(--muted); font-size: 0.85rem; text-align: center; padding: 10px;
+    flex-shrink: 0;
+  }
+  .photo img { width: 100%; height: 100%; object-fit: cover; }
+
+  h2 {
+    font-size: 1.3rem; margin-top: 50px; margin-bottom: 16px;
+    border-bottom: 1px solid var(--line); padding-bottom: 8px;
+  }
+  .contact-line { color: var(--muted); margin: 4px 0; }
+
+  .project {
+    background: var(--card); border: 1px solid var(--line); border-radius: 8px;
+    padding: 20px 24px; margin-bottom: 16px;
+  }
+  .project h3 { margin: 0 0 6px; font-size: 1.1rem; }
+  .project h3 a { color: var(--accent); text-decoration: none; }
+  .project h3 a:hover { text-decoration: underline; }
+  .project p { margin: 4px 0; color: var(--ink); line-height: 1.6; }
+  .tags { font-size: 0.82rem; color: var(--muted); margin-top: 8px; }
+
+  footer {
+    max-width: 900px; margin: 0 auto; padding: 20px 40px 40px;
+    color: var(--muted); font-size: 0.85rem; border-top: 1px solid var(--line);
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="name">Diego Corazao</div>
+  <div class="links" style="display:flex; align-items:center;">
+    <a href="#top">Inicio</a>
+    <a href="#proyectos">Proyectos</a>
+    <a href="#contacto">Contacto</a>
+  </div>
+</nav>
+
+<main>
+  <div class="hero" id="top">
+    <div class="text">
+      <h1>Diego Corazao</h1>
+      <p>
+        Trabajo en la Mesa de Dinero de <strong>COFIDE</strong> (Corporación
+        Financiera de Desarrollo), en renta fija soberana, FX y estructuración
+        de financiamiento. En paralelo curso estudios en economía monetaria,
+        econometría y derivados.
+      </p>
+      <p>
+        Este espacio reúne proyectos de análisis cuantitativo aplicado a
+        mercados peruanos: curvas soberanas, pricing de instrumentos y
+        herramientas de trading desk construidas en Python y VBA.
+      </p>
+    </div>
+    <div class="photo">
+      <img src="foto.jpg" alt="Diego Corazao"
+           onerror="this.style.display='none'; this.parentElement.innerHTML='Agrega foto.jpg<br>en la raíz del repo';">
+    </div>
+  </div>
+
+  <h2 id="proyectos">Proyectos</h2>
+
+  <div class="project">
+    <h3><a href="./curva-3d/">Curva soberana peruana en 3D</a></h3>
+    <p>Superficie interactiva de la curva BTP entre 2018 y 2026, construida
+       sobre plazos residuales con interpolación PCHIP y ajuste Nelson-Siegel.
+       Permite observar el empinamiento post-2022 y dislocaciones del tramo largo.</p>
+    <p class="tags">Python · Plotly · SciPy · Renta fija</p>
+  </div>
+
+  <h2 id="contacto">Contacto</h2>
+  <p class="contact-line">Email: <a href="mailto:diegocorazaobejar@gmail.com" style="color:var(--accent)">diegocorazaobejar@gmail.com</a></p>
+  <p class="contact-line">LinkedIn: <a href="https://www.linkedin.com/in/dcorazao/" target="_blank" style="color:var(--accent)">linkedin.com/in/dcorazao</a></p>
+  <p class="contact-line">GitHub: <a href="https://github.com/Diegocorazao" target="_blank" style="color:var(--accent)">github.com/Diegocorazao</a></p>
+</main>
+
+<footer>
+  Última actualización: agosto 2026
+</footer>
+
+
+</body>
+</html>
