@@ -71,3 +71,8 @@ solo emite intenciones que pasan por la misma validación que las órdenes
 del jugador).
 
 Datos ficticios, proyecto educativo. No constituye asesoría de inversión.
+
+---
+**Estructura de esta carpeta:** `index.html` + `assets/` son el sitio ya
+compilado (lo que se publica). El código fuente está en `codigo/` — para
+trabajarlo: `cd codigo && npm install && npm run dev`.
