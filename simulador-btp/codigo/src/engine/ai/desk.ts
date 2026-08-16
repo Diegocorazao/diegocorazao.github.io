@@ -1,71 +1,37 @@
 // ============================================================
-// ai/desk.ts — agentes institucionales grandes con cerebro LLM.
+// ai/desk.ts — los tres cerebros de IA del mercado.
 //
-// Reparto de responsabilidades:
-//   · Estos tres (AFP, Aseguradora, PIMCO) mueven el dinero grande y
-//     deciden despacio, con consultas espaciadas: consumen IA.
-//   · Banco, fondo mutuo y hedge RV viven en sim.ts como reglas rápidas
-//     y NO consumen IA: dan el ruido de mercado entre decisión y decisión.
+// Solo tres instituciones razonan con el modelo de lenguaje:
+//   · AFP Integra  → el mayor tenedor local, comprador estructural
+//   · BCP          → mesa de distribución: spread, inventario y flujo
+//   · PIMCO EM     → el offshore grande, mira el mundo antes que Perú
 //
-// Los tres observan las operaciones del jugador y pueden reaccionar a
-// ellas fuera de su cadencia normal cuando el tamaño es relevante.
+// Las otras dieciséis operan por reglas con personalidad propia y no
+// consumen API. Las consultas rotan y se espacian: el costo no crece
+// con la cantidad de participantes.
 // ============================================================
 import type { LLMClient, AgentBriefing, AgentDecision } from './client';
 import type { SimState } from '../types';
 import { NODES } from '../types';
 import { nodeYield } from '../sim';
+import { LLM_POOL, type AgentDef } from '../agents/registry';
 
-export interface LlmAgentCfg {
-  id: string;
-  name: string;
-  mandate: string;
-  limits: string;
-  maxTicketMM: number;
-  everyTicks: number;        // cadencia normal entre consultas
-  reactMM: number;           // tamaño del jugador que dispara reacción
-  reactCooldown: number;     // ticks mínimos entre reacciones
-}
+/** Cadencia y umbrales por institución. */
+const CFG: Record<string, { everyTicks: number; reactMM: number; reactCooldown: number }> = {
+  AFP_INTEGRA: { everyTicks: 260, reactMM: 60, reactCooldown: 130 },
+  BCP:         { everyTicks: 160, reactMM: 25, reactCooldown: 80  },
+  PIMCO:       { everyTicks: 220, reactMM: 40, reactCooldown: 110 },
+};
+const DEF = { everyTicks: 240, reactMM: 50, reactCooldown: 120 };
+const cfgOf = (a: AgentDef) => CFG[a.id] ?? DEF;
 
-export const LLM_AGENTS: LlmAgentCfg[] = [
-  {
-    id: 'AFP',
-    name: 'AFP Integra',
-    mandate:
-      'Fondo de pensiones peruano, el mayor tenedor local de soberanos. Horizonte de años, ' +
-      'baja rotación, mandato de retorno ajustado por riesgo. Eres comprador estructural en ' +
-      'caídas y sueles esperar niveles antes de entrar. Prefieres 7Y-20Y. Muy sensible a la ' +
-      'regulación y a los flujos de aportes y retiros. No especulas con movimientos de corto plazo.',
-    limits: 'Ticket máximo 80mm. Rara vez vendes: solo por necesidad de liquidez o revaluación de riesgo país.',
-    maxTicketMM: 80, everyTicks: 240, reactMM: 40, reactCooldown: 120,
-  },
-  {
-    id: 'SEGUROS',
-    name: 'Seguros del Pacífico',
-    mandate:
-      'Compañía de seguros de vida. Tu prioridad es el calce de activos y pasivos (ALM): ' +
-      'necesitas duration larga para cubrir obligaciones de muy largo plazo. Eres el comprador ' +
-      'natural del tramo 20Y-30Y y aprovechas los sell-offs para calzar a mejores tasas. ' +
-      'Indiferente a movimientos intradía. Casi nunca vendes duration.',
-    limits: 'Ticket máximo 50mm. Solo operas 15Y en adelante salvo razón excepcional.',
-    maxTicketMM: 50, everyTicks: 300, reactMM: 60, reactCooldown: 150,
-  },
-  {
-    id: 'PIMCO',
-    name: 'PIMCO EM (offshore)',
-    mandate:
-      'Gran fondo global de renta fija emergente. Operas Perú dentro de una cartera mundial: ' +
-      'te importan los Treasuries, el dólar, el cobre y el apetito por riesgo global tanto como ' +
-      'la macro local. Puedes tomar posiciones grandes y direccionales, y también salir rápido ' +
-      'si el entorno global se deteriora. Tu tamaño mueve el mercado, así que dosificas.',
-    limits: 'Ticket máximo 120mm. Puedes operar cualquier plazo. En risk-off global reduces exposición.',
-    maxTicketMM: 120, everyTicks: 200, reactMM: 30, reactCooldown: 100,
-  },
-];
+/** Espaciado mínimo entre CUALQUIER par de consultas (controla costo). */
+const GLOBAL_GAP = 45;
 
 export interface DeskEntry {
   t: number; agent: string; action: string; bond: string | null;
-  sizeMM: number; conviction: number; reason: string; executed: boolean;
-  reacting: boolean;
+  sizeMM: number; conviction: number; reason: string; view: string;
+  executed: boolean; reacting: boolean;
 }
 
 export class AiDesk {
@@ -74,11 +40,12 @@ export class AiDesk {
   memory: Record<string, string> = {};
   private lastCall: Record<string, number> = {};
   private lastReact: Record<string, number> = {};
+  private lastAny = -1e9;
   private reactingNow = new Set<string>();
   private seenPlayerTick = -1;
   private seenNewsTick = -1;
   private inFlight = new Set<string>();
-  pending: { cfg: LlmAgentCfg; d: AgentDecision; reacting: boolean }[] = [];
+  pending: { a: AgentDef; d: AgentDecision; reacting: boolean }[] = [];
   errors = 0;
   calls = 0;
 
@@ -86,115 +53,138 @@ export class AiDesk {
   get active() { return this.client !== null; }
 
   step(s: SimState, exec: (side: 'BUY'|'SELL', ticker: string, nominal: number, who: string) => any) {
-    // 1) ejecutar decisiones que ya llegaron
+    // 1) ejecutar lo que ya llegó
     while (this.pending.length) {
-      const { cfg, d, reacting } = this.pending.shift()!;
+      const { a, d, reacting } = this.pending.shift()!;
       let executed = false;
       if (d.action !== 'HOLD' && d.bond) {
-        const size = Math.min(d.sizeMM, cfg.maxTicketMM) * 1e6;
-        const r = exec(d.action, d.bond, size, cfg.name.split(' ')[0].toUpperCase());
+        const size = Math.min(d.sizeMM, a.ticketMM) * 1e6;
+        const r = exec(d.action, d.bond, size, a.name);
         executed = !!r?.ok;
       }
-      this.memory[cfg.id] = d.view || this.memory[cfg.id] || '';
+      if (d.view) this.memory[a.id] = d.view;
       this.log.unshift({
-        t: s.t, agent: cfg.name, action: d.action, bond: d.bond,
-        sizeMM: d.action === 'HOLD' ? 0 : Math.min(d.sizeMM, cfg.maxTicketMM),
-        conviction: d.conviction, reason: d.reason, executed, reacting,
+        t: s.t, agent: a.name, action: d.action, bond: d.bond,
+        sizeMM: d.action === 'HOLD' ? 0 : Math.min(d.sizeMM, a.ticketMM),
+        conviction: d.conviction, reason: d.reason, view: d.view,
+        executed, reacting,
       });
-      if (this.log.length > 25) this.log.pop();
+      if (this.log.length > 30) this.log.pop();
     }
 
     if (!this.client) return;
 
-    // 2) ¿el jugador hizo una operación relevante? → reacción fuera de cadencia
+    // 2) reacción a las operaciones del jugador
     const last = s.playerTrades[0];
     if (last && last.t > this.seenPlayerTick) {
       this.seenPlayerTick = last.t;
-      for (const cfg of LLM_AGENTS) {
-        if (last.mm < cfg.reactMM) continue;
-        if (s.t - (this.lastReact[cfg.id] ?? -1e9) < cfg.reactCooldown) continue;
-        this.reactingNow.add(cfg.id);
+      for (const a of LLM_POOL) {
+        const c = cfgOf(a);
+        if (last.mm < c.reactMM) continue;
+        if (s.t - (this.lastReact[a.id] ?? -1e9) < c.reactCooldown) continue;
+        this.reactingNow.add(a.id);
       }
     }
 
-    // 2b) ¿noticia relevante? → todos los agentes de IA la evalúan
+    // 3) reacción a noticias mayores
     const news = s.activeNews[0];
     if (news && news.t > this.seenNewsTick && news.major) {
       this.seenNewsTick = news.t;
-      for (const cfg of LLM_AGENTS) {
-        if (s.t - (this.lastReact[cfg.id] ?? -1e9) < cfg.reactCooldown / 2) continue;
-        this.reactingNow.add(cfg.id);
+      for (const a of LLM_POOL) {
+        if (s.t - (this.lastReact[a.id] ?? -1e9) < cfgOf(a).reactCooldown / 2) continue;
+        this.reactingNow.add(a.id);
       }
     }
 
-    // 3) una consulta por tick como máximo (las reacciones tienen prioridad)
-    const cola = [...LLM_AGENTS].sort(
-      (a, b) => (this.reactingNow.has(b.id) ? 1 : 0) - (this.reactingNow.has(a.id) ? 1 : 0));
+    // 4) una consulta a la vez, con espaciado global
+    if (s.t - this.lastAny < GLOBAL_GAP) return;
 
-    for (const cfg of cola) {
-      const reacting = this.reactingNow.has(cfg.id);
-      if (!reacting && s.t - (this.lastCall[cfg.id] ?? -1e9) < cfg.everyTicks) continue;
-      if (this.inFlight.has(cfg.id)) continue;
+    const cola = [...LLM_POOL].sort(
+      (x, y) => (this.reactingNow.has(y.id) ? 1 : 0) - (this.reactingNow.has(x.id) ? 1 : 0));
 
-      this.lastCall[cfg.id] = s.t;
-      if (reacting) { this.lastReact[cfg.id] = s.t; this.reactingNow.delete(cfg.id); }
-      this.inFlight.add(cfg.id);
+    for (const a of cola) {
+      const c = cfgOf(a);
+      const reacting = this.reactingNow.has(a.id);
+      if (!reacting && s.t - (this.lastCall[a.id] ?? -1e9) < c.everyTicks) continue;
+      if (this.inFlight.has(a.id)) continue;
+
+      this.lastCall[a.id] = s.t;
+      this.lastAny = s.t;
+      if (reacting) { this.lastReact[a.id] = s.t; this.reactingNow.delete(a.id); }
+      this.inFlight.add(a.id);
       this.calls++;
 
       const tickers = s.bonds.map(b => b.ticker);
       this.client
-        .decide(brief(s, cfg, this.memory[cfg.id] ?? 'Sin vista previa.', reacting), tickers)
-        .then(d => { if (d) this.pending.push({ cfg, d, reacting }); else this.errors++; })
+        .decide(brief(s, a, this.memory[a.id] ?? '', reacting), tickers)
+        .then(d => { if (d) this.pending.push({ a, d, reacting }); else this.errors++; })
         .catch(() => { this.errors++; })
-        .finally(() => this.inFlight.delete(cfg.id));
+        .finally(() => this.inFlight.delete(a.id));
       break;
     }
   }
 }
 
-/** Briefing comprimido. Incluye la actividad reciente del jugador. */
-function brief(s: SimState, cfg: LlmAgentCfg, prevView: string, reacting: boolean): AgentBriefing {
-  const curve = NODES.map(n => `${n}Y ${nodeYield(s, n).toFixed(2)}%`).join(' · ');
+/** Briefing con niveles concretos: mientras más específico, mejor razona. */
+function brief(s: SimState, a: AgentDef, prevView: string, reacting: boolean): AgentBriefing {
+  const curva = NODES.map(n => {
+    const y = nodeYield(s, n);
+    const prev = s.curve.prevDay[n] ?? y;
+    const d = (y - prev) * 100;
+    return `${n}Y ${y.toFixed(2)}% (${d >= 0 ? '+' : ''}${d.toFixed(1)}bp)`;
+  }).join(' · ');
+
   const s2s10 = ((nodeYield(s, 10) - nodeYield(s, 2)) * 100).toFixed(0);
   const s10s30 = ((nodeYield(s, 30) - nodeYield(s, 10)) * 100).toFixed(0);
-  const bonos = s.bonds.map(b => `${b.ticker} ${b.ytm.toFixed(2)}%`).join(', ');
 
-  const pt = s.playerTrades.slice(0, 5);
+  // qué bonos están ricos o baratos contra el ajuste de curva
+  const rv = s.bonds.map(b => {
+    const res = s.curve.residual[b.node] ?? 0;
+    const etiqueta = res > 2.5 ? ' [barato]' : res < -2.5 ? ' [rico]' : '';
+    return `${b.ticker} ${b.ytm.toFixed(2)}% dur ${b.modDur.toFixed(1)}${etiqueta}`;
+  }).join(', ');
+
+  const pt = s.playerTrades.slice(0, 4);
   const flujoJugador = pt.length
     ? pt.map(x => `${x.side === 'BUY' ? 'compró' : 'vendió'} PEN ${x.mm.toFixed(0)}mm ` +
                   `${x.ticker} a ${x.yield.toFixed(2)}%`).join('; ')
-    : 'Sin actividad reciente de esa mesa.';
+    : 'sin actividad reciente';
 
   const nota = reacting
-    ? '\nATENCIÓN: una mesa local acaba de operar un tamaño relevante (ver FLUJO DE OTRA MESA). ' +
-      'Evalúa si eso cambia tu lectura: puede ser información, presión temporal de precio que ' +
-      'te conviene aprovechar en contra, o algo irrelevante para tu horizonte.'
+    ? '\n\nSITUACIÓN: acaba de ocurrir algo relevante (noticia nueva o una operación grande de ' +
+      'otra mesa). Evalúa si cambia tu lectura o si es ruido para tu horizonte.'
     : '';
 
   return {
-    agentName: cfg.name,
-    mandate: cfg.mandate + nota,
-    limits: cfg.limits,
-    portfolio: 'Cartera institucional diversificada en soberanos locales; hay caja para operar.',
-    previousView: prevView,
-    curve: `${curve} | 2s10s ${s2s10}bp, 10s30s ${s10s30}bp | ${bonos}`,
+    agentName: a.name,
+    mandate: (a.mandate ?? '') + nota,
+    limits: a.limits ?? `Ticket máximo ${a.ticketMM}mm.`,
+    portfolio:
+      `AUM aproximado PEN ${(a.aum / 1000).toFixed(0)} mil MM. Cartera diversificada en ` +
+      `soberanos locales con caja disponible para operar.`,
+    previousView: prevView || 'Es tu primera evaluación de la sesión: fija una tesis inicial.',
+    curve:
+      `CURVA (nivel y cambio vs cierre anterior): ${curva}\n` +
+      `PENDIENTES: 2s10s ${s2s10}bp · 10s30s ${s10s30}bp\n` +
+      `BONOS: ${rv}`,
     macro:
-      `Inflación ${s.macro.cpiYoY.toFixed(1)}% a/a (consenso próximo dato ${s.cpiConsensus.toFixed(1)}%), ` +
-      `tasa BCRP ${s.macro.policyRate.toFixed(2)}%, UST10Y ${s.macro.ust10y.toFixed(2)}%, ` +
-      `USD/PEN ${s.macro.usdpen.toFixed(3)}, EMBI ${s.macro.embi.toFixed(0)}, ` +
-      `VIX ${s.macro.vix.toFixed(1)}, régimen ${s.macro.regime}, día ${s.day}`,
+      `Inflación ${s.macro.cpiYoY.toFixed(1)}% a/a (consenso próximo dato ` +
+      `${s.cpiConsensus.toFixed(1)}%) · tasa BCRP ${s.macro.policyRate.toFixed(2)}% · ` +
+      `UST10Y ${s.macro.ust10y.toFixed(2)}% · USD/PEN ${s.macro.usdpen.toFixed(3)} · ` +
+      `EMBI ${s.macro.embi.toFixed(0)}pb · VIX ${s.macro.vix.toFixed(1)} · ` +
+      `régimen ${s.macro.regime} · día ${s.day} de la sesión`,
     news: (() => {
       const ult = s.activeNews[0];
       const base = s.news.slice(0, 3).map(n => n.headline).join(' | ') || 'Sin novedades.';
       if (ult && ult.texto && s.t - ult.t < 60) {
-        return `TITULAR DE ÚLTIMO MINUTO (el mercado AÚN NO lo ha descontado; ` +
-               `evalúa tú mismo si es relevante para tu mandato y qué implica ` +
-               `para la curva peruana): "${ult.headline}" || ${base}`;
+        return `TITULAR DE ÚLTIMO MINUTO — el mercado AÚN NO lo ha descontado. Evalúa por tu ` +
+               `cuenta si es creíble, qué implica para la curva peruana y para tu mandato: ` +
+               `"${ult.headline}"\nOTRAS: ${base}`;
       }
       return base;
     })(),
     flow:
-      `FLUJO DE OTRA MESA (un participante local): ${flujoJugador}\n` +
-      `CINTA: ${s.tape.slice(0, 6).map(e => e.text).join(' | ') || 'sin flujo relevante'}`,
+      `OTRA MESA LOCAL: ${flujoJugador}\n` +
+      `CINTA RECIENTE: ${s.tape.slice(0, 8).map(e => e.text).join(' | ') || 'sin flujo'}`,
   };
 }

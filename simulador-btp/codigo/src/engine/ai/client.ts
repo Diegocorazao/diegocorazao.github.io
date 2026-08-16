@@ -32,6 +32,13 @@ export interface LLMClient {
   decide(b: AgentBriefing, tickers: string[]): Promise<AgentDecision | null>;
 }
 
+/** Extrae el objeto JSON de una respuesta que puede traer texto alrededor. */
+export function extractJson(txt: string): string {
+  const limpio = txt.replace(/```json|```/g, '').trim();
+  const i = limpio.indexOf('{'), j = limpio.lastIndexOf('}');
+  return i >= 0 && j > i ? limpio.slice(i, j + 1) : limpio;
+}
+
 // ---------- validación estricta (sin dependencias externas) ----------
 export function validateDecision(raw: any, tickers: string[]): AgentDecision | null {
   if (!raw || typeof raw !== 'object') return null;
@@ -60,13 +67,29 @@ export function validateDecision(raw: any, tickers: string[]): AgentDecision | n
   };
 }
 
-const SYSTEM = `Eres el portfolio manager de una institución que opera bonos soberanos peruanos.
-Compites contra otros inversionistas institucionales. NO conoces sus posiciones privadas.
-Respondes EXCLUSIVAMENTE con un objeto JSON, sin markdown ni texto adicional, con este esquema:
+const SYSTEM = `Eres el portfolio manager de una institución real que opera bonos soberanos
+peruanos en soles. Compites contra otras instituciones y NO conoces sus posiciones privadas.
+
+Piensa como un trader de mesa, no como un asistente:
+· Razona sobre NIVELES concretos, no sobre generalidades. Di "el 2037 a 7.18% ya paga
+  por encima de mi tasa objetivo" en vez de "el mercado parece atractivo".
+· Compara contra tu vista previa: si el mercado te dio la razón, súbele convicción; si te
+  contradijo, redúcela o da vuelta la posición. Ser incoherente con tu tesis anterior sin
+  explicar por qué es un error.
+· Un dato macro no mueve toda la curva por igual: la política monetaria pega en el tramo
+  corto, el riesgo fiscal y la oferta en el largo, el riesgo global en toda la curva.
+· El flujo de otros participantes es información, pero también puede ser presión temporal
+  de precio que te conviene aprovechar en contra.
+· HOLD es una decisión legítima y frecuente. No operes sin una razón concreta. Pero si el
+  nivel es claramente bueno para tu mandato, actuar es tu trabajo: no seas pasivo por
+  defecto.
+
+Responde EXCLUSIVAMENTE con un objeto JSON, sin markdown ni texto adicional:
 {"action":"BUY"|"SELL"|"HOLD","bond":"<ticker o null>","sizeMM":<número, PEN millones>,
-"urgency":<0-1>,"conviction":<0-1>,"view":"<tu tesis en una frase>","reason":"<justificación breve>"}
-Reglas: solo puedes usar los tickers listados. Respeta tus límites de riesgo y tu mandato.
-Si no hay una operación con convicción razonable, responde HOLD.`;
+"urgency":<0-1>,"conviction":<0-1>,"view":"<tu tesis actual, una frase con niveles>",
+"reason":"<por qué operas o por qué esperas, mencionando el dato o nivel que te movió>"}
+
+Solo puedes usar los tickers listados. Respeta tus límites y tu mandato.`;
 
 function userPrompt(b: AgentBriefing, tickers: string[]): string {
   return `INSTITUCIÓN: ${b.agentName}
@@ -86,17 +109,20 @@ Decide tu acción y responde solo con el JSON.`;
 }
 
 // ---------- DeepSeek ----------
+export type ModelId = 'deepseek-chat' | 'deepseek-reasoner';
+
 export class DeepSeekClient implements LLMClient {
   name = 'DeepSeek';
   constructor(
     private apiKey: string,
+    private model: ModelId = 'deepseek-chat',
     private baseUrl = 'https://api.deepseek.com/chat/completions',
-    private model = 'deepseek-chat',
-  ) {}
+  ) { this.name = `DeepSeek ${model === 'deepseek-reasoner' ? '(razonador)' : ''}`.trim(); }
 
   async decide(b: AgentBriefing, tickers: string[]): Promise<AgentDecision | null> {
     const ctrl = new AbortController();
-    const to = setTimeout(() => ctrl.abort(), 8000);
+    const to = setTimeout(() => ctrl.abort(),
+      this.model === 'deepseek-reasoner' ? 45000 : 12000);
     try {
       const res = await fetch(this.baseUrl, {
         method: 'POST',
@@ -113,14 +139,13 @@ export class DeepSeekClient implements LLMClient {
           ],
           response_format: { type: 'json_object' },
           temperature: 1.0,
-          max_tokens: 300,
+          max_tokens: this.model === 'deepseek-reasoner' ? 1600 : 400,
         }),
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       const txt: string = data?.choices?.[0]?.message?.content ?? '';
-      const clean = txt.replace(/```json|```/g, '').trim();
-      return validateDecision(JSON.parse(clean), tickers);
+      return validateDecision(JSON.parse(extractJson(txt)), tickers);
     } catch {
       return null;          // el llamador cae a la heurística
     } finally {
@@ -136,17 +161,22 @@ export class DeepSeekClient implements LLMClient {
  */
 export class ProxyClient implements LLMClient {
   name = 'DeepSeek (demo)';
-  constructor(private url: string) {}
+  constructor(private url: string, private model: ModelId = 'deepseek-chat') {
+    this.name = model === 'deepseek-reasoner'
+      ? 'DeepSeek razonador (demo)' : 'DeepSeek (demo)';
+  }
 
   async decide(b: AgentBriefing, tickers: string[]): Promise<AgentDecision | null> {
     const ctrl = new AbortController();
-    const to = setTimeout(() => ctrl.abort(), 9000);
+    const to = setTimeout(() => ctrl.abort(),
+      this.model === 'deepseek-reasoner' ? 45000 : 12000);
     try {
       const res = await fetch(this.url, {
         method: 'POST',
         signal: ctrl.signal,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          model: this.model,
           messages: [
             { role: 'system', content: SYSTEM },
             { role: 'user', content: userPrompt(b, tickers) },
@@ -156,7 +186,7 @@ export class ProxyClient implements LLMClient {
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       const txt: string = data?.choices?.[0]?.message?.content ?? '';
-      return validateDecision(JSON.parse(txt.replace(/```json|```/g, '').trim()), tickers);
+      return validateDecision(JSON.parse(extractJson(txt)), tickers);
     } catch {
       return null;
     } finally { clearTimeout(to); }

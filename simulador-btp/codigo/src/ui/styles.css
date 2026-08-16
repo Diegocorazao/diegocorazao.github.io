@@ -24,7 +24,7 @@ header { display:flex; gap:22px; align-items:center; flex-wrap:wrap;
 
 .grid { display:grid; gap:10px; padding:10px 16px; flex:1;
   grid-template-columns:1.15fr 1fr 0.85fr;
-  grid-template-areas:"curve bonds news" "port tape macro" "attr aidesk eventos"; }
+  grid-template-areas:"curve bonds news" "port tape macro" "attr aidesk eventos" "players players players"; }
 .panel { background:var(--panel); border:1px solid var(--line); border-radius:6px;
   padding:10px 12px; overflow:auto; min-height:230px; }
 .panel h2 { margin:0 0 8px; font-size:11px; letter-spacing:.12em; color:var(--acc); }
@@ -33,6 +33,15 @@ header { display:flex; gap:22px; align-items:center; flex-wrap:wrap;
 .attr { grid-area:attr; min-height:180px; }
 .aidesk { grid-area:aidesk; }
 .eventos { grid-area:eventos; }
+.players { grid-area:players; min-height:0; }
+.plist { display:grid; grid-template-columns:repeat(auto-fill, minmax(215px, 1fr)); gap:2px 16px; }
+.prow { display:flex; justify-content:space-between; padding:2px 0;
+  border-bottom:1px solid #171c26; font-size:12px; }
+.prow .llm { color:var(--acc); font-weight:700; }
+.modelsel { display:flex; gap:6px; align-items:center; margin-top:12px; }
+.modelsel button { background:var(--bg); color:var(--dim); border:1px solid var(--line);
+  padding:4px 10px; font:inherit; font-size:11px; cursor:pointer; border-radius:3px; }
+.modelsel button.on { border-color:var(--acc); color:var(--acc); }
 .evbtns { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:10px; }
 .evbtns button { background:#1b2230; color:var(--ink); border:1px solid var(--line);
   padding:5px 10px; font:inherit; font-size:11px; cursor:pointer; border-radius:3px; }
@@ -128,5 +137,5 @@ tr.sel td { background:#182131; }
 footer { padding:8px 16px; border-top:1px solid var(--line); font-size:11px; }
 @media (max-width: 1100px) {
   .grid { grid-template-columns:1fr;
-    grid-template-areas:"curve" "bonds" "eventos" "port" "attr" "aidesk" "news" "tape" "macro"; }
+    grid-template-areas:"curve" "bonds" "eventos" "port" "attr" "aidesk" "news" "tape" "macro" "players"; }
 }

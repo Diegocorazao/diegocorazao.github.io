@@ -42,8 +42,8 @@ describe('AiDesk', () => {
   it('ejecuta decisiones pendientes respetando el techo del agente', () => {
     const s = newSim(22); const desk = new AiDesk();
     desk.pending.push({
-      cfg: { id:'X', name:'PIMCO EM', mandate:'', limits:'', maxTicketMM: 40,
-             everyTicks: 10, reactMM: 30, reactCooldown: 50 },
+      a: { id:'X', name:'PIMCO EM', archetype:'OFFSHORE', aum: 1000, brain:'llm',
+           prefs: {}, actividad: 0.5, contrarian: 0.4, ticketMM: 40 },
       d: { action:'SELL', bond:'SOB2037', sizeMM: 500, urgency:1, conviction:1, view:'v', reason:'r' },
       reacting: false,
     });

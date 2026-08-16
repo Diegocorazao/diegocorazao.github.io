@@ -4,7 +4,8 @@ import { NODES, type SimState } from '../engine/types';
 import { AiDesk } from '../engine/ai/desk';
 import { injectPreset, injectTexto, PRESET_LIST, type PresetId } from '../engine/events/engine';
 import { makeRng } from '../engine/rng';
-import { DeepSeekClient, ProxyClient } from '../engine/ai/client';
+import { DeepSeekClient, ProxyClient, type ModelId } from '../engine/ai/client';
+import { AGENTS } from '../engine/agents/registry';
 import { PROXY_URL } from '../config/ai';
 
 const fmt = (x: number, d = 2) => x.toLocaleString('es-PE', { minimumFractionDigits: d, maximumFractionDigits: d });
@@ -15,14 +16,16 @@ export default function App() {
   const simRef = useRef<SimState>(newSim(seed));
   const deskRef = useRef((() => {
     const d = new AiDesk();
-    if (PROXY_URL) d.setClient(new ProxyClient(PROXY_URL));   // IA activa para todos
+    if (PROXY_URL) d.setClient(new ProxyClient(PROXY_URL, 'deepseek-reasoner'));
     return d;
   })());
   const [, force] = useState(0);
   const [showCfg, setShowCfg] = useState(false);
   const [apiKey, setApiKey] = useState('');
   const [nominal, setNominal] = useState('50');
-  const [lastSpeed, setLastSpeed] = useState<1|5|20>(1);
+  const [lastSpeed, setLastSpeed] = useState<0.5|1|5|20>(1);
+  const [model, setModel] = useState<ModelId>('deepseek-reasoner');
+  const acc = useRef(0);
   const [chartMode, setChartMode] = useState<'ytm'|'price'>('ytm');
   const [evTexto, setEvTexto] = useState('');
   const evRng = useRef(makeRng(Date.now() & 0xffffffff));
@@ -33,7 +36,9 @@ export default function App() {
     const id = setInterval(() => {
       const s = simRef.current;
       if (s.speed === 0) return;
-      for (let i = 0; i < s.speed; i++) {
+      acc.current += s.speed;
+      while (acc.current >= 1) {
+        acc.current -= 1;
         tick(s);
         deskRef.current.step(s, (side, tk, nom, who) => execute(s, side, tk, nom, who));
       }
@@ -61,15 +66,15 @@ export default function App() {
         <div className="speeds">
           <button className={`pp ${s.speed === 0 ? 'paused' : ''}`}
             onClick={() => {
-              if (s.speed === 0) s.speed = lastSpeed;
-              else { setLastSpeed(s.speed as 1|5|20); s.speed = 0; }
+              if (s.speed === 0) s.speed = lastSpeed as any;
+              else { setLastSpeed(s.speed as any); s.speed = 0; }
               force(x => x + 1);
             }}>
             {s.speed === 0 ? '▶ PLAY' : '⏸ PAUSA'}
           </button>
-          {[1, 5, 20].map(v => (
+          {[0.5, 1, 5, 20].map(v => (
             <button key={v} className={s.speed === v ? 'on' : ''}
-              onClick={() => { setLastSpeed(v as 1|5|20); s.speed = v as any; force(x => x + 1); }}>
+              onClick={() => { setLastSpeed(v as any); s.speed = v as any; force(x => x + 1); }}>
               {v}x</button>
           ))}
         </div>
@@ -249,6 +254,20 @@ export default function App() {
           <AttrBars s={s} />
         </section>
 
+        <section className="panel players">
+          <h2>PARTICIPANTES <span className="dim">{AGENTS.length} instituciones</span></h2>
+          <div className="plist">
+            {AGENTS.map(a => (
+              <div key={a.id} className="prow">
+                <span className={a.brain === 'llm' ? 'llm' : ''}>{a.name}</span>
+                <span className="dim">
+                  {a.brain === 'llm' ? 'IA' : 'reglas'} · {(a.aum / 1000).toFixed(0)}k
+                </span>
+              </div>
+            ))}
+          </div>
+        </section>
+
         <section className="panel macro">
           <h2>MACRO</h2>
           <div className="kv"><span>Inflación a/a</span><b>{s.macro.cpiYoY.toFixed(1)}%</b></div>
@@ -281,13 +300,26 @@ export default function App() {
                 la tuya abajo.
               </p>
             )}
+            <div className="modelsel">
+              <span className="dim">Modelo:</span>
+              {([['deepseek-chat','Rápido'],['deepseek-reasoner','Razonador (más inteligente)']] as const)
+                .map(([id, lbl]) => (
+                <button key={id} className={model === id ? 'on' : ''}
+                        onClick={() => setModel(id as ModelId)}>{lbl}</button>
+              ))}
+            </div>
+            <p className="dim">
+              El razonador piensa antes de responder: decisiones más coherentes con su mandato
+              y mejores lecturas de la curva, a cambio de 15-40 segundos por consulta y mayor
+              costo por llamada.
+            </p>
             <input type="password" placeholder="API key de DeepSeek (sk-...) — opcional"
                    value={apiKey} onChange={e => setApiKey(e.target.value)} />
             <div className="modalbtns">
               <button className="buy" onClick={() => {
                 deskRef.current.setClient(
-                  apiKey.trim() ? new DeepSeekClient(apiKey.trim())
-                  : PROXY_URL ? new ProxyClient(PROXY_URL) : null);
+                  apiKey.trim() ? new DeepSeekClient(apiKey.trim(), model)
+                  : PROXY_URL ? new ProxyClient(PROXY_URL, model) : null);
                 setShowCfg(false); force(x => x + 1);
               }}>Activar</button>
               <button onClick={() => {

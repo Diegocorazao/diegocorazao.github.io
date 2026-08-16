@@ -53,3 +53,28 @@ describe('historial de bonos', () => {
     expect(h.price[0]).toBeGreaterThan(50);
   });
 });
+
+describe('participantes del mercado', () => {
+  it('hay 20 instituciones y solo 3 usan IA', async () => {
+    const { AGENTS, LLM_POOL } = await import('../src/engine/agents/registry');
+    expect(AGENTS.length).toBe(20);
+    expect(LLM_POOL.length).toBe(3);
+    expect(LLM_POOL.map(a => a.id).sort()).toEqual(['AFP_INTEGRA', 'BCP', 'PIMCO']);
+  });
+  it('los agentes por reglas operan y generan flujo', () => {
+    const s = newSim(77);
+    for (let i = 0; i < 400; i++) tick(s);
+    const flujos = s.tape.filter(e => e.kind === 'flow');
+    expect(flujos.length).toBeGreaterThan(3);
+  });
+  it('ningún agente vende lo que no tiene', () => {
+    const s = newSim(78);
+    for (let i = 0; i < 1200; i++) tick(s);
+    const books = (s as any)._books as Record<string, { pos: Record<string, number> }>;
+    for (const id of Object.keys(books)) {
+      for (const tk of Object.keys(books[id].pos)) {
+        expect(books[id].pos[tk]).toBeGreaterThanOrEqual(-1e-6);
+      }
+    }
+  });
+});

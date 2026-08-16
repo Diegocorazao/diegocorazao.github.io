@@ -9,6 +9,7 @@ import {
   MIN_PER_DAY, NODES, type Bond, type SimState, type TapeEntry,
 } from './types';
 import { maybeEvent } from './events/engine';
+import { initBooks, runRuleAgents, type AgentBook } from './agents/behavior';
 import {
   attributeDaily, attributeTick, emptyAttr, execCost, snapshotYields,
   type Attribution,
@@ -163,8 +164,9 @@ export function execute(s: SimState, side: 'BUY'|'SELL', ticker: string,
 
   // impacto de mercado: 60% al residual del nodo, 40% al nivel NS ponderado
   const bpMove = dir * impactBp;
-  s.curve.residual[b.node] += bpMove * 0.6;
-  s.curve.ns.b0 += bpMove * 0.4 * (b.modDur / 12) / 100;
+  // el impacto es 75% temporal (residual del nodo, se disipa) y 25% permanente
+  s.curve.residual[b.node] += bpMove * 0.75;
+  s.curve.ns.b0 += bpMove * 0.20 * (b.modDur / 12) / 100;
 
   const mm = (nominal / 1e6).toFixed(0);
   tape(s, who === 'PLAYER'
@@ -184,68 +186,23 @@ function tape(s: SimState, text: string, kind: TapeEntry['kind']) {
 interface AgentCtx { mem: { mom: number[]; insurerCd: number; afpCd: number } }
 
 function agentsAct(s: SimState, rng: Rng, ctx: AgentCtx) {
-  // Estos agentes NO consumen IA: son reglas rápidas que dan vida al mercado
-  // entre las decisiones (lentas) de los agentes institucionales grandes.
   const y10 = nodeYield(s, 10);
-  ctx.mem.mom.push(y10); if (ctx.mem.mom.length > 20) ctx.mem.mom.shift();
+  ctx.mem.mom.push(y10);
+  if (ctx.mem.mom.length > 20) ctx.mem.mom.shift();
+  const momentum = ctx.mem.mom.length >= 8
+    ? (y10 - ctx.mem.mom[0]) * 100 : 0;
 
-  // HEDGE FUND RV: arbitra dislocaciones de nodo contra Nelson-Siegel
-  let peorNodo = 10, peorRes = 0;
-  for (const n of NODES) {
-    if (Math.abs(s.curve.residual[n]) > Math.abs(peorRes)) {
-      peorRes = s.curve.residual[n]; peorNodo = n;
-    }
-  }
-  if (Math.abs(peorRes) > 3.2 && rng() < 0.12) {
-    const b = s.bonds.reduce((a, x) =>
-      Math.abs(x.node - peorNodo) < Math.abs(a.node - peorNodo) ? x : a, s.bonds[0]);
-    // residual positivo = nodo barato (yield alto) → compra
-    execute(s, peorRes > 0 ? 'BUY' : 'SELL', b.ticker, (6 + rng() * 14) * 1e6, 'HEDGE RV');
-  }
+  const books = ((s as any)._books ??= initBooks());
+  runRuleAgents(s, rng, books as Record<string, AgentBook>, momentum,
+    (side, tk, nom, who) => execute(s, side, tk, nom, who));
 
-  // FONDO MUTUO: procíclico, sigue el momentum con retraso
-  if (ctx.mem.mom.length >= 15 && rng() < 0.07) {
-    const chg = (y10 - ctx.mem.mom[0]) * 100;
-    if (Math.abs(chg) > 3.5) {
-      const b = s.bonds[2 + Math.floor(rng() * 3)];
-      execute(s, chg > 0 ? 'SELL' : 'BUY', b.ticker, (4 + rng() * 10) * 1e6, 'FONDO MUTUO');
-    }
-  }
-
-  // REACCIÓN A NOTICIAS: los heurísticos leen el SESGO del evento
-  // (no el texto). Cada arquetipo responde según su naturaleza.
-  const nueva = s.activeNews[0];
-  if (nueva && s.t - nueva.t < 25 && !nueva.texto && Math.abs(nueva.bias) > 0.3) {
-    const vender = nueva.bias > 0;
-    // FONDO MUTUO: procíclico, sigue la noticia de frente
-    if (rng() < 0.30) {
-      const b = s.bonds[2 + Math.floor(rng() * 4)];
-      execute(s, vender ? 'SELL' : 'BUY', b.ticker,
-              (8 + rng() * 22) * Math.abs(nueva.bias) * 1e6, 'FONDO MUTUO');
-    }
-    // BANCO: recorta inventario ante malas noticias, provee liquidez si es leve
-    if (rng() < 0.25) {
-      const b = s.bonds[Math.floor(rng() * s.bonds.length)];
-      const fuerte = Math.abs(nueva.bias) > 0.7;
-      execute(s, fuerte === vender ? 'SELL' : 'BUY', b.ticker,
-              (4 + rng() * 10) * 1e6, 'BANCO');
-    }
-    // HEDGE RV: contrarian si la reacción se pasó de rosca
-    if (rng() < 0.18) {
-      const b = s.bonds[3 + Math.floor(rng() * 3)];
-      execute(s, vender ? 'BUY' : 'SELL', b.ticker, (5 + rng() * 12) * 1e6, 'HEDGE RV');
-    }
-  }
-
-  // BANCO: cotiza inventario y da liquidez; opera chico y seguido
-  if (rng() < 0.09) {
+  // color de mercado: cotizaciones sin operación
+  if (rng() < 0.10) {
     const b = s.bonds[Math.floor(rng() * s.bonds.length)];
-    if (rng() < 0.45) {
-      execute(s, rng() < 0.5 ? 'BUY' : 'SELL', b.ticker, (2 + rng() * 6) * 1e6, 'BANCO');
-    } else {
-      tape(s, `Banco ${rng() < 0.5 ? 'bids' : 'offers'} ${b.ticker} @ ` +
-              `${(rng() < 0.5 ? b.bidY : b.askY).toFixed(2)}%`, 'quote');
-    }
+    const bancos = ['BCP', 'BBVA', 'Scotiabank', 'Interbank', 'BCI', 'JP Morgan', 'Citi'];
+    const banco = bancos[Math.floor(rng() * bancos.length)];
+    tape(s, `${banco} ${rng() < 0.5 ? 'bids' : 'offers'} ${b.ticker} @ ` +
+            `${(rng() < 0.5 ? b.bidY : b.askY).toFixed(2)}%`, 'quote');
   }
 }
 
@@ -329,7 +286,7 @@ export function tick(s: SimState) {
   c.ns.b1 += 0.02 * (c.nsFair.b1 - c.ns.b1) / 390 + normal(rng) * 0.00045;
   c.ns.b2 += 0.03 * (c.nsFair.b2 - c.ns.b2) / 390 + normal(rng) * 0.00035;
   for (const n of NODES) {
-    c.residual[n] += -0.012 * c.residual[n] + normal(rng) * 0.022;
+    c.residual[n] += -0.030 * c.residual[n] + normal(rng) * 0.022;
   }
 
   agentsAct(s, rng, ctx);
