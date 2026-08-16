@@ -1,148 +1,1295 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Diego Corazao</title>
-<style>
-  :root {
-    --bg: #000000; --ink: #e8e8e8; --muted: #9a9a9a; --line: #2a2a2a;
-    --accent: #6fa8dc; --card: #111111;
-  }
-  * { box-sizing: border-box; }
-  body {
-    margin: 0; background: var(--bg); color: var(--ink);
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
-    transition: background 0.2s, color 0.2s;
-  }
-  nav {
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 20px 40px; border-bottom: 1px solid var(--line);
-  }
-  nav .name { font-size: 1.3rem; font-weight: 700; }
-  nav .links a {
-    color: var(--ink); text-decoration: none; margin-left: 28px; font-size: 0.95rem;
-  }
-  nav .links a:hover { color: var(--accent); }
-  .toggle {
-    margin-left: 28px; width: 40px; height: 22px; border-radius: 12px;
-    background: var(--line); position: relative; cursor: pointer; border: none;
-  }
-  .toggle .knob {
-    position: absolute; top: 2px; left: 2px; width: 18px; height: 18px;
-    border-radius: 50%; background: var(--accent); transition: left 0.2s;
-  }
-  html.dark .toggle .knob { left: 20px; }
 
-  main { max-width: 900px; margin: 0 auto; padding: 50px 40px 80px; }
-  .hero { display: flex; gap: 40px; align-items: flex-start; flex-wrap: wrap; }
-  .hero .text { flex: 1; min-width: 280px; }
-  .hero h1 { font-size: 2.4rem; margin: 0 0 16px; }
-  .hero p { line-height: 1.7; color: var(--ink); }
-  .hero a { color: var(--accent); text-decoration: none; }
-  .hero a:hover { text-decoration: underline; }
+<title>Diego Corazao | Fixed Income & Markets</title>
+
+<meta
+  name="description"
+  content="Diego Corazao — Fixed income, sovereign bonds, global markets, quantitative research and financial technology."
+>
+
+<style>
+
+  :root {
+    --bg: #000000;
+    --surface: #080808;
+    --surface-hover: #0c0c0c;
+
+    --ink: #f0f0f0;
+    --secondary: #b0b0b0;
+    --muted: #737373;
+
+    --line: #202020;
+    --line-hover: #3a3a3a;
+
+    --accent: #8ab4d8;
+
+    --max-width: 1080px;
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+
+    font-family:
+      "Helvetica Neue",
+      Helvetica,
+      Arial,
+      -apple-system,
+      BlinkMacSystemFont,
+      sans-serif;
+
+    font-size: 16px;
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  ::selection {
+    background: var(--accent);
+    color: #000;
+  }
+
+  a {
+    color: inherit;
+  }
+
+
+  /* =========================================
+     NAVIGATION
+  ========================================= */
+
+  nav {
+    width: 100%;
+    border-bottom: 1px solid var(--line);
+    background: rgba(0, 0, 0, 0.96);
+
+    position: sticky;
+    top: 0;
+    z-index: 100;
+
+    backdrop-filter: blur(10px);
+  }
+
+  .nav-inner {
+    max-width: var(--max-width);
+    margin: 0 auto;
+
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    padding: 18px 32px;
+  }
+
+  .name {
+    font-size: 0.92rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .links {
+    display: flex;
+    align-items: center;
+    gap: 30px;
+  }
+
+  .links a {
+    color: var(--secondary);
+    text-decoration: none;
+
+    font-size: 0.84rem;
+    letter-spacing: 0.03em;
+
+    transition: color 0.15s ease;
+  }
+
+  .links a:hover {
+    color: var(--ink);
+  }
+
+
+  /* =========================================
+     MAIN
+  ========================================= */
+
+  main {
+    max-width: var(--max-width);
+    margin: 0 auto;
+    padding: 90px 32px 110px;
+  }
+
+
+  /* =========================================
+     HERO
+  ========================================= */
+
+  .hero {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 285px;
+    gap: 80px;
+    align-items: center;
+
+    padding-bottom: 85px;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .eyebrow {
+    margin: 0 0 18px;
+
+    color: var(--accent);
+
+    font-size: 0.74rem;
+    font-weight: 600;
+
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+  }
+
+  .hero h1 {
+    margin: 0;
+
+    font-family: Georgia, "Times New Roman", serif;
+
+    font-size: clamp(3rem, 7vw, 4.8rem);
+    line-height: 1;
+
+    letter-spacing: -0.045em;
+    font-weight: 400;
+  }
+
+  .role {
+    margin: 18px 0 31px;
+
+    color: var(--secondary);
+
+    font-size: 0.98rem;
+    letter-spacing: 0.015em;
+  }
+
+  .hero-description {
+    max-width: 650px;
+
+    color: #c4c4c4;
+
+    font-size: 1.01rem;
+    line-height: 1.82;
+  }
+
+  .hero-description p {
+    margin-top: 0;
+    margin-bottom: 17px;
+  }
+
+  .hero-description strong {
+    color: var(--ink);
+    font-weight: 500;
+  }
+
+  .hero-links {
+    margin-top: 31px;
+
+    display: flex;
+    flex-wrap: wrap;
+    gap: 24px;
+  }
+
+  .hero-links a {
+    color: var(--secondary);
+    text-decoration: none;
+
+    font-size: 0.82rem;
+    letter-spacing: 0.045em;
+
+    border-bottom: 1px solid #3b3b3b;
+    padding-bottom: 3px;
+
+    transition:
+      color 0.15s ease,
+      border-color 0.15s ease;
+  }
+
+  .hero-links a:hover {
+    color: var(--ink);
+    border-color: var(--ink);
+  }
+
+
+  /* =========================================
+     PHOTO
+  ========================================= */
+
+  .photo-container {
+    width: 285px;
+  }
 
   .photo {
-    width: 220px; height: 220px; border-radius: 10px; overflow: hidden;
-    background: var(--card); border: 1px solid var(--line);
-    display: flex; align-items: center; justify-content: center;
-    color: var(--muted); font-size: 0.85rem; text-align: center; padding: 10px;
-    flex-shrink: 0;
+    position: relative;
+
+    width: 100%;
+    aspect-ratio: 4 / 5;
+
+    overflow: hidden;
+
+    background: #080808;
+    border: 1px solid var(--line);
   }
-  .photo img { width: 100%; height: 100%; object-fit: cover; }
+
+  .photo img {
+    width: 100%;
+    height: 100%;
+
+    object-fit: cover;
+    object-position: center top;
+
+    display: block;
+
+    filter: grayscale(8%) contrast(1.03);
+  }
+
+  .photo::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+
+    pointer-events: none;
+
+    background:
+      linear-gradient(
+        to top,
+        rgba(0, 0, 0, 0.16),
+        transparent 38%
+      );
+  }
+
+  .photo-caption {
+    margin-top: 11px;
+
+    display: flex;
+    justify-content: space-between;
+
+    color: var(--muted);
+
+    font-size: 0.7rem;
+    letter-spacing: 0.06em;
+
+    text-transform: uppercase;
+  }
+
+
+  /* =========================================
+     GENERAL SECTIONS
+  ========================================= */
+
+  section {
+    padding-top: 82px;
+  }
+
+  .section-header {
+    display: grid;
+    grid-template-columns: 180px minmax(0, 1fr);
+    gap: 40px;
+
+    margin-bottom: 32px;
+  }
+
+  .section-number {
+    color: var(--muted);
+
+    font-size: 0.72rem;
+    font-weight: 500;
+
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+
+    padding-top: 7px;
+  }
 
   h2 {
-    font-size: 1.3rem; margin-top: 50px; margin-bottom: 16px;
-    border-bottom: 1px solid var(--line); padding-bottom: 8px;
+    margin: 0;
+
+    font-family: Georgia, "Times New Roman", serif;
+
+    font-size: 2rem;
+    line-height: 1.2;
+
+    font-weight: 400;
+    letter-spacing: -0.025em;
   }
-  .contact-line { color: var(--muted); margin: 4px 0; }
+
+
+  /* =========================================
+     ABOUT
+  ========================================= */
+
+  .about-grid {
+    display: grid;
+    grid-template-columns: 180px minmax(0, 1fr);
+    gap: 40px;
+
+    padding: 31px 0 6px;
+
+    border-top: 1px solid var(--line);
+  }
+
+  .about-label {
+    color: var(--muted);
+
+    font-size: 0.72rem;
+    line-height: 1.6;
+
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+  }
+
+  .about-content {
+    max-width: 720px;
+  }
+
+  .about-content p {
+    margin: 0 0 21px;
+
+    color: #b3b3b3;
+
+    font-size: 0.94rem;
+    line-height: 1.8;
+  }
+
+  .about-content p:first-child {
+    color: #d0d0d0;
+  }
+
+  .about-content strong {
+    color: var(--ink);
+    font-weight: 500;
+  }
+
+
+  /* =========================================
+     FOCUS AREAS
+  ========================================= */
+
+  .focus-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+
+    border-top: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+  }
+
+  .focus-item {
+    padding: 28px 28px 31px 0;
+  }
+
+  .focus-item:not(:last-child) {
+    border-right: 1px solid var(--line);
+    margin-right: 28px;
+  }
+
+  .focus-number {
+    color: var(--muted);
+
+    font-size: 0.67rem;
+    letter-spacing: 0.08em;
+
+    margin-bottom: 17px;
+  }
+
+  .focus-item h3 {
+    margin: 0 0 10px;
+
+    font-size: 0.97rem;
+    font-weight: 500;
+  }
+
+  .focus-item p {
+    margin: 0;
+
+    color: #929292;
+
+    font-size: 0.83rem;
+    line-height: 1.65;
+  }
+
+
+  /* =========================================
+     PROJECTS
+  ========================================= */
+
+  .projects-list {
+    border-top: 1px solid var(--line);
+  }
 
   .project {
-    background: var(--card); border: 1px solid var(--line); border-radius: 8px;
-    padding: 20px 24px; margin-bottom: 16px;
+    display: grid;
+    grid-template-columns: 180px minmax(0, 1fr) 24px;
+    gap: 40px;
+
+    padding: 31px 0;
+
+    border-bottom: 1px solid var(--line);
+
+    transition: border-color 0.15s ease;
   }
-  .project h3 { margin: 0 0 6px; font-size: 1.1rem; }
-  .project h3 a { color: var(--accent); text-decoration: none; }
-  .project h3 a:hover { text-decoration: underline; }
-  .project p { margin: 4px 0; color: var(--ink); line-height: 1.6; }
-  .tags { font-size: 0.82rem; color: var(--muted); margin-top: 8px; }
+
+  .project:hover {
+    border-color: var(--line-hover);
+  }
+
+  .project-type {
+    color: var(--muted);
+
+    font-size: 0.7rem;
+    line-height: 1.55;
+
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+
+    padding-top: 4px;
+  }
+
+  .project h3 {
+    margin: 0 0 12px;
+
+    font-size: 1.13rem;
+    font-weight: 500;
+
+    letter-spacing: -0.01em;
+  }
+
+  .project h3 a {
+    text-decoration: none;
+    color: var(--ink);
+
+    transition: color 0.15s ease;
+  }
+
+  .project h3 a:hover {
+    color: var(--accent);
+  }
+
+  .project p {
+    max-width: 680px;
+
+    margin: 0;
+
+    color: #a4a4a4;
+
+    line-height: 1.72;
+    font-size: 0.91rem;
+  }
+
+  .tags {
+    margin-top: 15px;
+
+    color: var(--muted);
+
+    font-size: 0.7rem;
+    letter-spacing: 0.05em;
+  }
+
+  .project-arrow {
+    color: #555;
+    font-size: 1.05rem;
+
+    transition:
+      transform 0.15s ease,
+      color 0.15s ease;
+  }
+
+  .project:hover .project-arrow {
+    color: var(--accent);
+    transform: translate(3px, -3px);
+  }
+
+
+  /* =========================================
+     CFA / CURRENT FOCUS
+  ========================================= */
+
+  .status-row {
+    display: grid;
+    grid-template-columns: 180px minmax(0, 1fr);
+    gap: 40px;
+
+    border-top: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+
+    padding: 30px 0;
+  }
+
+  .status-main {
+    max-width: 720px;
+  }
+
+  .status-title {
+    margin: 0 0 9px;
+
+    color: var(--ink);
+
+    font-size: 1rem;
+    font-weight: 500;
+  }
+
+  .status-description {
+    margin: 0;
+
+    color: #a5a5a5;
+
+    font-size: 0.9rem;
+    line-height: 1.72;
+  }
+
+
+  /* =========================================
+     CONTACT
+  ========================================= */
+
+  .contact-grid {
+    display: grid;
+    grid-template-columns: 180px minmax(0, 1fr);
+    gap: 40px;
+
+    padding: 31px 0;
+
+    border-top: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+  }
+
+  .contact-description {
+    color: #a4a4a4;
+
+    font-size: 0.91rem;
+    line-height: 1.7;
+
+    max-width: 620px;
+
+    margin: 0 0 25px;
+  }
+
+  .contact-links {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+
+    gap: 9px;
+  }
+
+  .contact-links a {
+    color: var(--secondary);
+    text-decoration: none;
+
+    font-size: 0.86rem;
+
+    border-bottom: 1px solid #353535;
+
+    transition:
+      color 0.15s ease,
+      border-color 0.15s ease;
+  }
+
+  .contact-links a:hover {
+    color: var(--ink);
+    border-color: var(--ink);
+  }
+
+
+  /* =========================================
+     FOOTER
+  ========================================= */
 
   footer {
-    max-width: 900px; margin: 0 auto; padding: 20px 40px 40px;
-    color: var(--muted); font-size: 0.85rem; border-top: 1px solid var(--line);
+    max-width: var(--max-width);
+    margin: 0 auto;
+
+    padding: 0 32px 45px;
+
+    color: #555;
+
+    font-size: 0.69rem;
+    letter-spacing: 0.055em;
   }
+
+  .footer-inner {
+    display: flex;
+    justify-content: space-between;
+    gap: 30px;
+
+    padding-top: 25px;
+  }
+
+
+  /* =========================================
+     RESPONSIVE
+  ========================================= */
+
+  @media (max-width: 850px) {
+
+    .nav-inner {
+      padding: 16px 22px;
+    }
+
+    .links {
+      gap: 18px;
+    }
+
+    main {
+      padding: 60px 22px 80px;
+    }
+
+    .hero {
+      grid-template-columns: 1fr;
+      gap: 47px;
+    }
+
+    .photo-container {
+      width: min(100%, 330px);
+    }
+
+    .section-header,
+    .about-grid,
+    .project,
+    .status-row,
+    .contact-grid {
+      grid-template-columns: 1fr;
+      gap: 12px;
+    }
+
+    .focus-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .focus-item {
+      padding: 24px 0;
+    }
+
+    .focus-item:not(:last-child) {
+      border-right: none;
+      border-bottom: 1px solid var(--line);
+      margin-right: 0;
+    }
+
+    .project {
+      position: relative;
+      padding: 26px 0;
+    }
+
+    .project-arrow {
+      position: absolute;
+      right: 0;
+      top: 26px;
+    }
+
+    footer {
+      padding: 0 22px 35px;
+    }
+
+  }
+
+
+  @media (max-width: 560px) {
+
+    .links a:first-child {
+      display: none;
+    }
+
+    .hero h1 {
+      font-size: 3.1rem;
+    }
+
+    .hero {
+      padding-bottom: 62px;
+    }
+
+    section {
+      padding-top: 62px;
+    }
+
+    .footer-inner {
+      flex-direction: column;
+      gap: 5px;
+    }
+
+  }
+
 </style>
 </head>
+
+
 <body>
 
+
+<!-- =========================================
+     NAVIGATION
+========================================= -->
+
 <nav>
-  <div class="name">Diego Corazao</div>
-  <div class="links" style="display:flex; align-items:center;">
-    <a href="#top">Inicio</a>
-    <a href="#proyectos">Proyectos</a>
-    <a href="#contacto">Contacto</a>
+
+  <div class="nav-inner">
+
+    <div class="name">
+      Diego Corazao
+    </div>
+
+    <div class="links">
+      <a href="#top">Home</a>
+      <a href="#about">About</a>
+      <a href="#projects">Projects</a>
+      <a href="#contact">Contact</a>
+    </div>
+
   </div>
+
 </nav>
 
+
+
 <main>
+
+
+  <!-- =========================================
+       HERO
+  ========================================= -->
+
   <div class="hero" id="top">
-    <div class="text">
-      <h1>Diego Corazao</h1>
-      <p>
-        Trabajo en la Mesa de Dinero de <strong>COFIDE</strong> (Corporación
-        Financiera de Desarrollo), en renta fija soberana, FX y estructuración
-        de financiamiento. En paralelo curso estudios en economía monetaria,
-        econometría y derivados.
+
+    <div class="hero-text">
+
+      <p class="eyebrow">
+        Fixed Income · Sovereign Markets · Quantitative Research
       </p>
-      <p>
-        Este espacio reúne proyectos de análisis cuantitativo aplicado a
-        mercados peruanos: curvas soberanas, pricing de instrumentos y
-        herramientas de trading desk construidas en Python y VBA.
+
+      <h1>
+        Diego Corazao
+      </h1>
+
+      <p class="role">
+        Money Market & Fixed Income · COFIDE · Lima, Peru
       </p>
+
+      <div class="hero-description">
+
+        <p>
+          I work at the Money Market Desk of
+          <strong>COFIDE — Corporación Financiera de Desarrollo</strong>,
+          with professional exposure to sovereign fixed income, global bonds,
+          foreign exchange and financing transactions.
+        </p>
+
+        <p>
+          I am particularly interested in understanding how rates,
+          macroeconomics, positioning, liquidity and institutional flows
+          interact to shape bond markets.
+        </p>
+
+      </div>
+
+      <div class="hero-links">
+
+        <a href="mailto:diegocorazaobejar@gmail.com">
+          Email ↗
+        </a>
+
+        <a
+          href="https://www.linkedin.com/in/dcorazao/"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          LinkedIn ↗
+        </a>
+
+        <a
+          href="https://github.com/Diegocorazao"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          GitHub ↗
+        </a>
+
+      </div>
+
     </div>
-    <div class="photo">
-      <img src="foto.jpg" alt="Diego Corazao"
-           onerror="this.style.display='none'; this.parentElement.innerHTML='Agrega foto.jpg<br>en la raíz del repo';">
+
+
+    <!-- PHOTO -->
+
+    <div class="photo-container">
+
+      <div class="photo">
+
+        <img
+          src="foto1.jpeg"
+          alt="Diego Corazao"
+          onerror="
+            this.style.display='none';
+            this.parentElement.style.display='flex';
+            this.parentElement.style.alignItems='center';
+            this.parentElement.style.justifyContent='center';
+            this.parentElement.style.color='#666';
+            this.parentElement.style.fontSize='12px';
+            this.parentElement.innerHTML='Add foto1.jpg to the repository root';
+          "
+        >
+
+      </div>
+
+      <div class="photo-caption">
+        <span>Lima, Peru</span>
+        <span>Fixed Income</span>
+      </div>
+
     </div>
-  </div>
 
-  <h2 id="proyectos">Proyectos</h2>
-
-  <div class="project">
-
-
-    <h3><a href="./curva-3d/">Curva soberana peruana en 3D</a></h3>
-    <p>Superficie interactiva de la curva BTP entre 2018 y 2026, construida
-       sobre plazos residuales con interpolación PCHIP y ajuste Nelson-Siegel.
-       Permite observar el empinamiento post-2022 y dislocaciones del tramo largo.</p>
-    <p class="tags">Python · Plotly · SciPy · Renta fija</p>
-  </div>
-
-  <div class="project">
-    <h3><a href="./emisiones-mef/">Emisiones de bonos soberanos del Perú (2001–2026)</a></h3>
-    <p>Pipeline completo: parser del PDF público del MEF con validación
-       contra los totales oficiales (1,490 subastas, S/ 281,749 MM), y
-       gráfico interactivo de la emisión anual por tramo de plazo. El 62.5%
-       se concentra en 5–15 años; el tramo corto desaparece después de 2006.</p>
-    <p class="tags">Python · pdfplumber · Plotly · openpyxl · Renta fija</p>
-  </div>
- <div class="project">
-    <h3><a href="./simulador-btp/">Mesa BTP — Simulador de trading de bonos soberanos</a></h3>
-    <p>Simulador de mesa de renta fija con curva Nelson-Siegel, impacto de
-       mercado raíz-cuadrada y agentes institucionales heurísticos. El P&L
-       se descompone en carry, rolldown, tasas, curva y ejecución.</p>
-    <p class="tags">TypeScript · React · Microestructura · Renta fija</p>
   </div>
 
 
-  <h2 id="contacto">Contacto</h2>
-  <p class="contact-line">Email: <a href="mailto:diegocorazaobejar@gmail.com" style="color:var(--accent)">diegocorazaobejar@gmail.com</a></p>
-  <p class="contact-line">LinkedIn: <a href="https://www.linkedin.com/in/dcorazao/" target="_blank" style="color:var(--accent)">linkedin.com/in/dcorazao</a></p>
-  <p class="contact-line">GitHub: <a href="https://github.com/Diegocorazao" target="_blank" style="color:var(--accent)">github.com/Diegocorazao</a></p>
+
+  <!-- =========================================
+       ABOUT
+  ========================================= -->
+
+  <section id="about">
+
+    <div class="section-header">
+
+      <div class="section-number">
+        01 / Profile
+      </div>
+
+      <h2>
+        About
+      </h2>
+
+    </div>
+
+
+    <div class="about-grid">
+
+      <div class="about-label">
+        Markets<br>
+        Research<br>
+        Technology
+      </div>
+
+      <div class="about-content">
+
+        <p>
+          My main professional interest is
+          <strong>fixed income and sovereign bond markets</strong>.
+          Through my work I have gained exposure to the trading and analysis
+          of Peruvian sovereign securities, global bonds, FX markets and
+          institutional fixed-income transactions.
+        </p>
+
+        <p>
+          What attracts me most to markets is the combination of
+          macroeconomics, quantitative analysis and human behavior.
+          I enjoy studying how inflation expectations, monetary policy,
+          fiscal developments, positioning and market liquidity translate
+          into movements across the yield curve.
+        </p>
+
+        <p>
+          I have also been fortunate to build relationships with professionals
+          from whom I continuously learn about trading, portfolio management
+          and financial markets. I place a high value on learning from people
+          with direct market experience and on continuously improving my own
+          analytical framework.
+        </p>
+
+        <p>
+          Fixed income is more than a professional area of interest for me.
+          I genuinely enjoy studying bond markets, following rates,
+          understanding market narratives and developing a deeper intuition
+          for how institutional investors make decisions.
+        </p>
+
+        <p>
+          Alongside markets, I am increasingly interested in the use of
+          <strong>artificial intelligence and software development</strong>
+          to build independent financial tools and products. My objective is
+          to combine financial market knowledge, quantitative methods and AI
+          to create useful projects that can eventually become scalable
+          independent ventures.
+        </p>
+
+      </div>
+
+    </div>
+
+  </section>
+
+
+
+  <!-- =========================================
+       AREAS OF INTEREST
+  ========================================= -->
+
+  <section>
+
+    <div class="section-header">
+
+      <div class="section-number">
+        02 / Interests
+      </div>
+
+      <h2>
+        Areas of focus
+      </h2>
+
+    </div>
+
+
+    <div class="focus-grid">
+
+      <div class="focus-item">
+
+        <div class="focus-number">
+          01
+        </div>
+
+        <h3>
+          Fixed Income
+        </h3>
+
+        <p>
+          Sovereign bonds, global bonds, yield curves, duration,
+          relative value, monetary policy and institutional flows.
+        </p>
+
+      </div>
+
+
+      <div class="focus-item">
+
+        <div class="focus-number">
+          02
+        </div>
+
+        <h3>
+          Quantitative Markets
+        </h3>
+
+        <p>
+          Curve construction, pricing, econometrics, risk analytics,
+          market microstructure and systematic market analysis.
+        </p>
+
+      </div>
+
+
+      <div class="focus-item">
+
+        <div class="focus-number">
+          03
+        </div>
+
+        <h3>
+          AI & Financial Technology
+        </h3>
+
+        <p>
+          Applying artificial intelligence and software development
+          to research, trading tools and independent financial products.
+        </p>
+
+      </div>
+
+    </div>
+
+  </section>
+
+
+
+  <!-- =========================================
+       CURRENT FOCUS / CFA
+  ========================================= -->
+
+  <section>
+
+    <div class="section-header">
+
+      <div class="section-number">
+        03 / Development
+      </div>
+
+      <h2>
+        Current focus
+      </h2>
+
+    </div>
+
+
+    <div class="status-row">
+
+      <div class="about-label">
+        CFA Program
+      </div>
+
+      <div class="status-main">
+
+        <p class="status-title">
+          Preparing for CFA Level I
+        </p>
+
+        <p class="status-description">
+          I am currently strengthening my foundation in investment analysis,
+          economics, financial reporting, portfolio management and
+          quantitative methods, with the objective of sitting for the
+          CFA Level I examination in February 2027.
+        </p>
+
+      </div>
+
+    </div>
+
+  </section>
+
+
+
+  <!-- =========================================
+       PROJECTS
+  ========================================= -->
+
+  <section id="projects">
+
+    <div class="section-header">
+
+      <div class="section-number">
+        04 / Research
+      </div>
+
+      <h2>
+        Selected projects
+      </h2>
+
+    </div>
+
+
+    <div class="projects-list">
+
+
+      <!-- PROJECT 1 -->
+
+      <article class="project">
+
+        <div class="project-type">
+          Fixed Income<br>
+          Yield Curve
+        </div>
+
+        <div>
+
+          <h3>
+            <a href="./curva-3d/">
+              Peruvian sovereign yield curve in 3D
+            </a>
+          </h3>
+
+          <p>
+            Interactive visualization of the Peruvian sovereign yield curve
+            between 2018 and 2026, constructed across residual maturities
+            using PCHIP interpolation and Nelson–Siegel parametrization.
+            The project allows the evolution of curve level, slope and
+            curvature to be examined through time.
+          </p>
+
+          <div class="tags">
+            PYTHON · PLOTLY · SCIPY · NELSON–SIEGEL · FIXED INCOME
+          </div>
+
+        </div>
+
+        <div class="project-arrow">
+          ↗
+        </div>
+
+      </article>
+
+
+
+      <!-- PROJECT 2 -->
+
+      <article class="project">
+
+        <div class="project-type">
+          Sovereign<br>
+          Issuance
+        </div>
+
+        <div>
+
+          <h3>
+            <a href="./emisiones-mef/">
+              Peruvian sovereign bond issuance · 2001–2026
+            </a>
+          </h3>
+
+          <p>
+            Data pipeline and historical analysis of domestic sovereign bond
+            issuance by Peru's Ministry of Economy and Finance. The project
+            includes extraction from public sources, validation against
+            official figures and interactive analysis of issuance by
+            maturity segment.
+          </p>
+
+          <div class="tags">
+            PYTHON · PDFPLUMBER · PLOTLY · OPENPYXL · SOVEREIGN DEBT
+          </div>
+
+        </div>
+
+        <div class="project-arrow">
+          ↗
+        </div>
+
+      </article>
+
+
+
+      <!-- PROJECT 3 -->
+
+      <article class="project">
+
+        <div class="project-type">
+          Market<br>
+          Simulation
+        </div>
+
+        <div>
+
+          <h3>
+            <a href="./simulador-btp/">
+              Sovereign Bond Trading Desk Simulator
+            </a>
+          </h3>
+
+          <p>
+            Institutional fixed-income market simulator combining a dynamic
+            sovereign yield curve, macroeconomic events, institutional agents,
+            order flow and market microstructure. The project explores
+            duration, DV01, liquidity, positioning and P&amp;L across
+            changing market regimes.
+          </p>
+
+          <div class="tags">
+            TYPESCRIPT · REACT · AI · MARKET MICROSTRUCTURE · FIXED INCOME
+          </div>
+
+        </div>
+
+        <div class="project-arrow">
+          ↗
+        </div>
+
+      </article>
+
+    </div>
+
+  </section>
+
+
+
+  <!-- =========================================
+       CONTACT
+  ========================================= -->
+
+  <section id="contact">
+
+    <div class="section-header">
+
+      <div class="section-number">
+        05 / Contact
+      </div>
+
+      <h2>
+        Contact
+      </h2>
+
+    </div>
+
+
+    <div class="contact-grid">
+
+      <div class="about-label">
+        Lima<br>
+        Peru
+      </div>
+
+      <div>
+
+        <p class="contact-description">
+          Always interested in connecting with people working in fixed income,
+          asset management, trading, quantitative finance and financial
+          technology, as well as exchanging ideas around markets and
+          independent financial projects.
+        </p>
+
+        <div class="contact-links">
+
+          <a href="mailto:diegocorazaobejar@gmail.com">
+            diegocorazaobejar@gmail.com ↗
+          </a>
+
+          <a
+            href="https://www.linkedin.com/in/dcorazao/"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            LinkedIn ↗
+          </a>
+
+          <a
+            href="https://github.com/Diegocorazao"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            GitHub ↗
+          </a>
+
+        </div>
+
+      </div>
+
+    </div>
+
+  </section>
+
+
 </main>
 
+
+
+<!-- =========================================
+     FOOTER
+========================================= -->
+
 <footer>
-  Última actualización: agosto 2026
+
+  <div class="footer-inner">
+
+    <span>
+      © 2026 Diego Corazao
+    </span>
+
+    <span>
+      Fixed Income · Markets · Quantitative Research
+    </span>
+
+  </div>
+
 </footer>
 
 
