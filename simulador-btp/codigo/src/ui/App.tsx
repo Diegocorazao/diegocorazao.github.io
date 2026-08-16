@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { newSim, tick, execute, nodeYield } from '../engine/sim';
 import { NODES, type SimState } from '../engine/types';
 import { AiDesk } from '../engine/ai/desk';
+import { injectPreset, injectTexto, PRESET_LIST, type PresetId } from '../engine/events/engine';
+import { makeRng } from '../engine/rng';
 import { DeepSeekClient, ProxyClient } from '../engine/ai/client';
 import { PROXY_URL } from '../config/ai';
 
@@ -19,7 +21,11 @@ export default function App() {
   const [, force] = useState(0);
   const [showCfg, setShowCfg] = useState(false);
   const [apiKey, setApiKey] = useState('');
-  const [nominal, setNominal] = useState('10');
+  const [nominal, setNominal] = useState('50');
+  const [lastSpeed, setLastSpeed] = useState<1|5|20>(1);
+  const [chartMode, setChartMode] = useState<'ytm'|'price'>('ytm');
+  const [evTexto, setEvTexto] = useState('');
+  const evRng = useRef(makeRng(Date.now() & 0xffffffff));
   const [sel, setSel] = useState('SOB2037');
   const [msg, setMsg] = useState('');
 
@@ -53,10 +59,18 @@ export default function App() {
         <div className="clock">Día {s.day} · {String(hh).padStart(2,'0')}:{String(mn).padStart(2,'0')}
           <span className={`regime ${s.macro.regime}`}>{s.macro.regime}</span></div>
         <div className="speeds">
-          {[0, 1, 5, 20].map(v => (
+          <button className={`pp ${s.speed === 0 ? 'paused' : ''}`}
+            onClick={() => {
+              if (s.speed === 0) s.speed = lastSpeed;
+              else { setLastSpeed(s.speed as 1|5|20); s.speed = 0; }
+              force(x => x + 1);
+            }}>
+            {s.speed === 0 ? '▶ PLAY' : '⏸ PAUSA'}
+          </button>
+          {[1, 5, 20].map(v => (
             <button key={v} className={s.speed === v ? 'on' : ''}
-              onClick={() => { s.speed = v as any; force(x => x + 1); }}>
-              {v === 0 ? '⏸' : `${v}x`}</button>
+              onClick={() => { setLastSpeed(v as 1|5|20); s.speed = v as any; force(x => x + 1); }}>
+              {v}x</button>
           ))}
         </div>
         <button className={`aibtn ${deskRef.current.active ? 'on' : ''}`}
@@ -75,6 +89,16 @@ export default function App() {
         <section className="panel curve">
           <h2>CURVA SOBERANA <span className="dim">hoy vs cierre anterior · Δbp</span></h2>
           <CurveChart s={s} />
+          <div className="bondchart-head">
+            <span className="dim">HISTÓRICO {sel}</span>
+            <div className="modes">
+              <button className={chartMode === 'ytm' ? 'on' : ''}
+                onClick={() => setChartMode('ytm')}>Yield</button>
+              <button className={chartMode === 'price' ? 'on' : ''}
+                onClick={() => setChartMode('price')}>Precio</button>
+            </div>
+          </div>
+          <BondChart s={s} ticker={sel} mode={chartMode} />
           <div className="spreads">
             {([['2s10s',2,10],['5s10s',5,10],['10s30s',10,30]] as const).map(([n,a,b]) => (
               <span key={n}>{n}: <b>{((nodeYield(s,b)-nodeYield(s,a))*100).toFixed(1)}bp</b></span>
@@ -157,6 +181,40 @@ export default function App() {
             </tbody>
           </table>
           <div className="dim" style={{marginTop: 6}}>Realizado: PEN {mm(s.portfolio.realizedTotal)}mm</div>
+        </section>
+
+        <section className="panel eventos">
+          <h2>PROVOCAR EVENTO <span className="dim">signo y magnitud aleatorios</span></h2>
+          <div className="evbtns">
+            {PRESET_LIST.map(p => (
+              <button key={p.id} onClick={() => {
+                const n = injectPreset(s, p.id as PresetId, evRng.current);
+                s.activeNews.unshift(n);
+                force(x => x + 1);
+              }}>{p.label}</button>
+            ))}
+          </div>
+          <div className="evtexto">
+            <input placeholder="Escribe un titular y la IA lo interpretará…"
+                   value={evTexto}
+                   onChange={e => setEvTexto(e.target.value)}
+                   onKeyDown={e => {
+                     if (e.key === 'Enter' && evTexto.trim()) {
+                       s.activeNews.unshift(injectTexto(s, evTexto));
+                       setEvTexto(''); force(x => x + 1);
+                     }
+                   }} />
+            <button onClick={() => {
+              if (!evTexto.trim()) return;
+              s.activeNews.unshift(injectTexto(s, evTexto));
+              setEvTexto(''); force(x => x + 1);
+            }}>Publicar</button>
+          </div>
+          <div className="dim evnota">
+            Los botones aplican un shock real a la curva con signo que no conoces de antemano.
+            El titular escrito <b>no mueve precios por sí solo</b>: solo llega a los agentes de IA,
+            y el mercado se moverá si ellos deciden operar.
+          </div>
         </section>
 
         <section className="panel aidesk">
@@ -253,6 +311,36 @@ export default function App() {
         semilla {s.seed} · proyecto educativo, datos ficticios
       </footer>
     </div>
+  );
+}
+
+function BondChart({ s, ticker, mode }: { s: SimState; ticker: string; mode: 'ytm'|'price' }) {
+  const h = s.history[ticker];
+  const W = 520, H = 110, P = 30;
+  if (!h || h.t.length < 3) {
+    return <div className="dim" style={{ height: 70, paddingTop: 24 }}>
+      Acumulando histórico… deja correr el mercado unos minutos.</div>;
+  }
+  const v = mode === 'ytm' ? h.ytm : h.price;
+  const lo = Math.min(...v), hi = Math.max(...v);
+  const pad = (hi - lo) * 0.15 || 0.05;
+  const X = (i: number) => P + (i / (v.length - 1)) * (W - 2 * P);
+  const Y = (y: number) => H - 18 - ((y - lo + pad) / (hi - lo + 2 * pad)) * (H - 34);
+  const d = v.map((y, i) => `${i ? 'L' : 'M'}${X(i).toFixed(1)},${Y(y).toFixed(1)}`).join(' ');
+  const last = v[v.length - 1], first = v[0];
+  const sube = last >= first;
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} className="bondchart">
+      <path d={`${d} L${X(v.length - 1)},${H - 14} L${X(0)},${H - 14} Z`}
+            className={`area ${sube ? 'up' : 'dn'}`} />
+      <path d={d} className={`line ${sube ? 'up' : 'dn'}`} />
+      <text x={W - P} y={12} className="lbl">
+        {mode === 'ytm' ? `${last.toFixed(3)}%` : last.toFixed(3)}
+      </text>
+      <text x={P} y={12} className="lbl dimtxt">
+        {mode === 'ytm' ? `${first.toFixed(3)}%` : first.toFixed(3)}
+      </text>
+    </svg>
   );
 }
 

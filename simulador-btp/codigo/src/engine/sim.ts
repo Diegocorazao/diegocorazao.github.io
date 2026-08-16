@@ -8,6 +8,7 @@ import { priceFromYtm, modDuration, dv01PerMM } from './pricing/bond';
 import {
   MIN_PER_DAY, NODES, type Bond, type SimState, type TapeEntry,
 } from './types';
+import { maybeEvent } from './events/engine';
 import {
   attributeDaily, attributeTick, emptyAttr, execCost, snapshotYields,
   type Attribution,
@@ -34,6 +35,9 @@ function liqFor(mat: number) {
   return { normalSize, impactK, baseSpreadBp };
 }
 
+/** Capital inicial del jugador (PEN). Cámbialo aquí si quieres otro nivel. */
+export const CAPITAL = 2_000e6;      // PEN 2,000 millones
+
 export function newSim(seed: number): SimState {
   const rng = makeRng(seed);
   const ns = { b0: 7.62, b1: -1.42, b2: -0.55, tau: 2.6 };
@@ -54,12 +58,12 @@ export function newSim(seed: number): SimState {
     },
     curve: { ns, nsFair: { ...ns }, residual, prevDay: {} },
     bonds,
-    portfolio: { cash: 100e6, positions: {}, realizedTotal: 0, startNav: 100e6 },
-    tape: [], news: [], playerTrades: [],
+    portfolio: { cash: CAPITAL, positions: {}, realizedTotal: 0, startNav: CAPITAL },
+    tape: [], news: [], playerTrades: [], history: {}, activeNews: [],
     pendingCpiTick: 120 + Math.floor(rng() * 60),
     cpiConsensus: 3.2,
-    dailyPnlBase: 100e6,
-    totals: { nav: 100e6, dailyPnl: 0, totalPnl: 0, dv01: 0 },
+    dailyPnlBase: CAPITAL,
+    totals: { nav: CAPITAL, dailyPnl: 0, totalPnl: 0, dv01: 0 },
     attr: emptyAttr(),
   };
   repriceAll(state);
@@ -67,7 +71,7 @@ export function newSim(seed: number): SimState {
   state.news.push({
     t: 0, kind: 'event',
     headline: 'Apertura de mercado — Mesa BTP',
-    body: 'Administras PEN 100 MM. Dato de inflación esperado hoy. Consenso: 3.2% a/a (anterior 3.1%).',
+    body: 'Administras PEN 2,000 MM. Dato de inflación esperado hoy. Consenso: 3.2% a/a (anterior 3.1%).',
   });
   (state as any)._rng = rng;
   return state;
@@ -208,6 +212,31 @@ function agentsAct(s: SimState, rng: Rng, ctx: AgentCtx) {
     }
   }
 
+  // REACCIÓN A NOTICIAS: los heurísticos leen el SESGO del evento
+  // (no el texto). Cada arquetipo responde según su naturaleza.
+  const nueva = s.activeNews[0];
+  if (nueva && s.t - nueva.t < 25 && !nueva.texto && Math.abs(nueva.bias) > 0.3) {
+    const vender = nueva.bias > 0;
+    // FONDO MUTUO: procíclico, sigue la noticia de frente
+    if (rng() < 0.30) {
+      const b = s.bonds[2 + Math.floor(rng() * 4)];
+      execute(s, vender ? 'SELL' : 'BUY', b.ticker,
+              (8 + rng() * 22) * Math.abs(nueva.bias) * 1e6, 'FONDO MUTUO');
+    }
+    // BANCO: recorta inventario ante malas noticias, provee liquidez si es leve
+    if (rng() < 0.25) {
+      const b = s.bonds[Math.floor(rng() * s.bonds.length)];
+      const fuerte = Math.abs(nueva.bias) > 0.7;
+      execute(s, fuerte === vender ? 'SELL' : 'BUY', b.ticker,
+              (4 + rng() * 10) * 1e6, 'BANCO');
+    }
+    // HEDGE RV: contrarian si la reacción se pasó de rosca
+    if (rng() < 0.18) {
+      const b = s.bonds[3 + Math.floor(rng() * 3)];
+      execute(s, vender ? 'BUY' : 'SELL', b.ticker, (5 + rng() * 12) * 1e6, 'HEDGE RV');
+    }
+  }
+
   // BANCO: cotiza inventario y da liquidez; opera chico y seguido
   if (rng() < 0.09) {
     const b = s.bonds[Math.floor(rng() * s.bonds.length)];
@@ -280,6 +309,14 @@ export function tick(s: SimState) {
 
   maybeCpi(s, rng);
 
+  // motor de eventos de mercado (probabilidades condicionadas al estado macro)
+  const ev = maybeEvent(s, rng);
+  if (ev) {
+    s.activeNews.unshift(ev);
+    if (s.activeNews.length > 8) s.activeNews.pop();
+    tape(s, `⚡ ${ev.headline}`, 'news');
+  }
+
   // snapshot para atribución
   const prevY = snapshotYields(s);
   const prevB0 = s.curve.ns.b0;
@@ -298,4 +335,13 @@ export function tick(s: SimState) {
   agentsAct(s, rng, ctx);
   repriceAll(s);
   attributeTick(s, prevY, (s.curve.ns.b0 - prevB0) * 100, s.attr);
+
+  // historial para los gráficos (una muestra cada 5 ticks)
+  if (s.t % 5 === 0) {
+    for (const b of s.bonds) {
+      const h = (s.history[b.ticker] ??= { t: [], ytm: [], price: [] });
+      h.t.push(s.t); h.ytm.push(b.ytm); h.price.push(b.price);
+      if (h.t.length > 400) { h.t.shift(); h.ytm.shift(); h.price.shift(); }
+    }
+  }
 }

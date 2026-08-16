@@ -15,6 +15,7 @@ header { display:flex; gap:22px; align-items:center; flex-wrap:wrap;
 .regime.CARRY { background:#153226; color:var(--up); }
 .regime.RISK_OFF { background:#3a1720; color:var(--dn); }
 .regime.INFLATION_FEAR { background:#3a2a10; color:var(--amber); }
+.regime.FISCAL_STRESS { background:#3a1f10; color:#e08a3c; }
 .speeds button { background:var(--panel); color:var(--ink); border:1px solid var(--line);
   padding:3px 10px; margin-right:4px; cursor:pointer; font:inherit; }
 .speeds button.on { border-color:var(--acc); color:var(--acc); }
@@ -23,7 +24,7 @@ header { display:flex; gap:22px; align-items:center; flex-wrap:wrap;
 
 .grid { display:grid; gap:10px; padding:10px 16px; flex:1;
   grid-template-columns:1.15fr 1fr 0.85fr;
-  grid-template-areas:"curve bonds news" "port tape macro" "attr aidesk macro"; }
+  grid-template-areas:"curve bonds news" "port tape macro" "attr aidesk eventos"; }
 .panel { background:var(--panel); border:1px solid var(--line); border-radius:6px;
   padding:10px 12px; overflow:auto; min-height:230px; }
 .panel h2 { margin:0 0 8px; font-size:11px; letter-spacing:.12em; color:var(--acc); }
@@ -31,6 +32,31 @@ header { display:flex; gap:22px; align-items:center; flex-wrap:wrap;
 .port { grid-area:port; } .tape { grid-area:tape; } .macro { grid-area:macro; }
 .attr { grid-area:attr; min-height:180px; }
 .aidesk { grid-area:aidesk; }
+.eventos { grid-area:eventos; }
+.evbtns { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:10px; }
+.evbtns button { background:#1b2230; color:var(--ink); border:1px solid var(--line);
+  padding:5px 10px; font:inherit; font-size:11px; cursor:pointer; border-radius:3px; }
+.evbtns button:hover { border-color:var(--amber); color:var(--amber); }
+.evtexto { display:flex; gap:6px; }
+.evtexto input { flex:1; background:#0d1117; color:var(--ink); border:1px solid var(--line);
+  padding:6px 8px; font:inherit; font-size:12px; }
+.evtexto button { background:#1a3a5c; color:#dbeaff; border:none; padding:6px 12px;
+  font:inherit; font-size:11px; cursor:pointer; border-radius:3px; }
+.evnota { font-size:11px; margin-top:8px; line-height:1.5; }
+.pp { min-width:86px; font-weight:700; }
+.pp.paused { border-color:var(--up) !important; color:var(--up) !important; }
+.bondchart-head { display:flex; justify-content:space-between; align-items:center;
+  margin-top:6px; font-size:11px; }
+.modes button { background:transparent; color:var(--dim); border:1px solid var(--line);
+  padding:2px 8px; font:inherit; font-size:10px; cursor:pointer; margin-left:4px; }
+.modes button.on { border-color:var(--acc); color:var(--acc); }
+.bondchart { width:100%; height:auto; }
+.bondchart .line { fill:none; stroke-width:1.6; }
+.bondchart .line.up { stroke:var(--dn); } .bondchart .line.dn { stroke:var(--up); }
+.bondchart .area { opacity:.10; }
+.bondchart .area.up { fill:var(--dn); } .bondchart .area.dn { fill:var(--up); }
+.bondchart .lbl { font-size:10px; fill:var(--ink); text-anchor:end; }
+.bondchart .dimtxt { fill:var(--dim); text-anchor:start; }
 .deskrow { border-bottom:1px solid var(--line); padding:6px 0; }
 .deskrow .agent { color:var(--acc); }
 .act { margin-left:8px; padding:0 6px; border-radius:3px; font-size:11px; }
@@ -102,5 +128,5 @@ tr.sel td { background:#182131; }
 footer { padding:8px 16px; border-top:1px solid var(--line); font-size:11px; }
 @media (max-width: 1100px) {
   .grid { grid-template-columns:1fr;
-    grid-template-areas:"curve" "bonds" "port" "attr" "aidesk" "news" "tape" "macro"; }
+    grid-template-areas:"curve" "bonds" "eventos" "port" "attr" "aidesk" "news" "tape" "macro"; }
 }

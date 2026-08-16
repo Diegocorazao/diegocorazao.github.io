@@ -76,6 +76,7 @@ export class AiDesk {
   private lastReact: Record<string, number> = {};
   private reactingNow = new Set<string>();
   private seenPlayerTick = -1;
+  private seenNewsTick = -1;
   private inFlight = new Set<string>();
   pending: { cfg: LlmAgentCfg; d: AgentDecision; reacting: boolean }[] = [];
   errors = 0;
@@ -112,6 +113,16 @@ export class AiDesk {
       for (const cfg of LLM_AGENTS) {
         if (last.mm < cfg.reactMM) continue;
         if (s.t - (this.lastReact[cfg.id] ?? -1e9) < cfg.reactCooldown) continue;
+        this.reactingNow.add(cfg.id);
+      }
+    }
+
+    // 2b) ¿noticia relevante? → todos los agentes de IA la evalúan
+    const news = s.activeNews[0];
+    if (news && news.t > this.seenNewsTick && news.major) {
+      this.seenNewsTick = news.t;
+      for (const cfg of LLM_AGENTS) {
+        if (s.t - (this.lastReact[cfg.id] ?? -1e9) < cfg.reactCooldown / 2) continue;
         this.reactingNow.add(cfg.id);
       }
     }
@@ -172,7 +183,16 @@ function brief(s: SimState, cfg: LlmAgentCfg, prevView: string, reacting: boolea
       `tasa BCRP ${s.macro.policyRate.toFixed(2)}%, UST10Y ${s.macro.ust10y.toFixed(2)}%, ` +
       `USD/PEN ${s.macro.usdpen.toFixed(3)}, EMBI ${s.macro.embi.toFixed(0)}, ` +
       `VIX ${s.macro.vix.toFixed(1)}, régimen ${s.macro.regime}, día ${s.day}`,
-    news: s.news.slice(0, 3).map(n => n.headline).join(' | ') || 'Sin novedades.',
+    news: (() => {
+      const ult = s.activeNews[0];
+      const base = s.news.slice(0, 3).map(n => n.headline).join(' | ') || 'Sin novedades.';
+      if (ult && ult.texto && s.t - ult.t < 60) {
+        return `TITULAR DE ÚLTIMO MINUTO (el mercado AÚN NO lo ha descontado; ` +
+               `evalúa tú mismo si es relevante para tu mandato y qué implica ` +
+               `para la curva peruana): "${ult.headline}" || ${base}`;
+      }
+      return base;
+    })(),
     flow:
       `FLUJO DE OTRA MESA (un participante local): ${flujoJugador}\n` +
       `CINTA: ${s.tape.slice(0, 6).map(e => e.text).join(' | ') || 'sin flujo relevante'}`,

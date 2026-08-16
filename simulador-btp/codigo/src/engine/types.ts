@@ -52,6 +52,9 @@ export interface PlayerTrade {
   t: number; side: 'BUY'|'SELL'; ticker: string; mm: number; yield: number;
 }
 
+/** Serie histórica por bono para los gráficos. */
+export interface BondHistory { t: number[]; ytm: number[]; price: number[] }
+
 export interface NewsItem {
   t: number; headline: string; body?: string;
   kind: 'macro'|'event'|'flow';
@@ -59,7 +62,7 @@ export interface NewsItem {
 
 export interface AgentMemory { view: string; conviction: number; lastYield10: number }
 
-export type Regime = 'CARRY' | 'RISK_OFF' | 'INFLATION_FEAR';
+export type Regime = 'CARRY' | 'RISK_OFF' | 'INFLATION_FEAR' | 'FISCAL_STRESS';
 
 export interface MacroState {
   cpiYoY: number; cpiExp: number; policyRate: number;
@@ -79,6 +82,9 @@ export interface SimState {
   portfolio: Portfolio;
   tape: TapeEntry[];
   playerTrades: PlayerTrade[];
+  history: Record<string, BondHistory>;
+  /** Últimas noticias con su sesgo, para que los agentes reaccionen. */
+  activeNews: { t: number; headline: string; bias: number; major: boolean; texto?: boolean }[];
   news: NewsItem[];
   pendingCpiTick: number;  // próximo dato de inflación
   cpiConsensus: number;
