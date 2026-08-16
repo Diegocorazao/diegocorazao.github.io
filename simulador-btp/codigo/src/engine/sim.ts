@@ -36,7 +36,7 @@ function liqFor(mat: number) {
 
 export function newSim(seed: number): SimState {
   const rng = makeRng(seed);
-  const ns = { b0: 7.35, b1: -2.55, b2: -0.9, tau: 2.4 };
+  const ns = { b0: 7.62, b1: -1.42, b2: -0.55, tau: 2.6 };
   const residual: Record<number, number> = {};
   for (const n of NODES) residual[n] = (rng() - 0.5) * 4;
 
@@ -129,11 +129,11 @@ export function execute(s: SimState, side: 'BUY'|'SELL', ticker: string,
 
   // impacto raíz-cuadrada sobre el yield del nodo
   const q = nominal / b.liq.normalSize;
-  const impactBp = b.liq.impactK * Math.sqrt(Math.min(q, 60)) * stressMult(s);
+  const impactBp = b.liq.impactK * Math.pow(Math.min(q, 60), 0.62) * stressMult(s);
   // el que compra presiona el yield a la baja; el que vende, al alza
   const dir = side === 'BUY' ? -1 : 1;
   const crossY = side === 'BUY' ? b.askY : b.bidY;      // cruza el spread
-  const execY = crossY + dir * impactBp / 100 * 0.35;    // slippage parcial propio
+  const execY = crossY + dir * impactBp / 100 * 0.55;    // slippage parcial propio
   const execP = priceFromYtm(b.coupon, b.maturityYears, execY);
   const midP = priceFromYtm(b.coupon, b.maturityYears, b.ytm);
 
@@ -279,11 +279,11 @@ export function tick(s: SimState) {
   const c = s.curve;
   c.ns.b0 += 0.02 * (c.nsFair.b0 - c.ns.b0) / 390
            + 0.25 * (s.macro.ust10y - 4.18) * 0.0004
-           + normal(rng) * 0.0016 * stressMult(s);
-  c.ns.b1 += 0.02 * (c.nsFair.b1 - c.ns.b1) / 390 + normal(rng) * 0.0013;
-  c.ns.b2 += 0.03 * (c.nsFair.b2 - c.ns.b2) / 390 + normal(rng) * 0.0010;
+           + normal(rng) * 0.00055 * stressMult(s);
+  c.ns.b1 += 0.02 * (c.nsFair.b1 - c.ns.b1) / 390 + normal(rng) * 0.00045;
+  c.ns.b2 += 0.03 * (c.nsFair.b2 - c.ns.b2) / 390 + normal(rng) * 0.00035;
   for (const n of NODES) {
-    c.residual[n] += -0.012 * c.residual[n] + normal(rng) * 0.05;
+    c.residual[n] += -0.012 * c.residual[n] + normal(rng) * 0.022;
   }
 
   agentsAct(s, rng, ctx);

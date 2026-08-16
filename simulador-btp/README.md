@@ -36,6 +36,35 @@ verdadero de la economía; el consenso, del estado observable. La sorpresa
 es la diferencia — no está escrita en ningún lado. El shock se aplica con
 perfil por madurez: golpea el tramo corto y decae hacia el largo.
 
+## Agentes con IA (opcional)
+
+Tres agentes institucionales —Offshore Macro, Hedge Fund RV y AFP Alfa—
+pueden razonar sus decisiones con un modelo de lenguaje en vez de reglas
+fijas. Se activa con el botón **IA** del encabezado, pegando una API key
+propia de DeepSeek.
+
+En la versión publicada los agentes de IA vienen **activos por defecto**:
+la key vive en un proxy (Cloudflare Worker) con cupo diario y límite por
+visitante, nunca en el navegador. Ver `worker/DESPLIEGUE.md`.
+
+Dos garantías de diseño:
+
+**El modelo no fija precios.** Solo emite una intención (`action`, `bond`,
+`sizeMM`, `urgency`, `conviction`) que pasa por la misma validación que las
+órdenes del jugador: ticker inexistente, tamaño sobre el mandato o acción
+inválida se rechazan antes de llegar al motor. El precio siempre sale de la
+microestructura.
+
+**La simulación nunca se bloquea.** El tick del motor es síncrono y la
+llamada al modelo es asíncrona: se dispara la consulta, el mercado sigue
+corriendo, y la decisión se ejecuta cuando llega — igual que un PM que se
+demora en decidir mientras el mercado se mueve. Si el modelo falla, hay
+timeout o no hay key, los agentes operan con sus heurísticas.
+
+La key se guarda solo en la memoria de la pestaña: no está en el código, no
+va a ningún servidor propio y se borra al cerrar. El proveedor es
+intercambiable — el motor solo conoce la interfaz `LLMClient`.
+
 ## Arquitectura
 
 ```
@@ -43,6 +72,7 @@ src/engine/          motor puro en TypeScript, sin dependencias de UI
   pricing/           precio↔yield, duration, convexidad, DV01 (+tests)
   curve/             Nelson-Siegel (+tests)
   portfolio/         atribución de P&L
+  ai/                LLMClient, prompts, validación, orquestación async
   sim.ts             orquestador: 1 tick = 1 minuto de mercado
 src/ui/              terminal React (7 paneles, tema oscuro)
 tests/               comportamiento del motor (reproducibilidad, límites)
@@ -55,24 +85,23 @@ correr en Node, en un backend o en el navegador sin cambios.
 
 ```bash
 npm install
-npm test      # 13 tests
+npm test      # 23 tests
 npm run dev
 ```
 
 ## Estado y hoja de ruta
 
-MVP jugable: 9 bonos, curva de 8 nodos, 4 agentes heurísticos, dato de
-inflación con sorpresa, régimen de liquidez, atribución de P&L.
+MVP jugable: 9 bonos, curva de 8 nodos, 4 agentes heurísticos + 3 agentes
+con IA opcional, dato de inflación con sorpresa, régimen de liquidez,
+atribución de P&L. 23 tests.
 
 Siguientes cortes: escenario de retiro de AFP con liquidación endógena,
-trades de curva (2s10s, butterflies), capa LLM opcional para la vista
-estratégica de los agentes (el motor de precios queda intacto: el modelo
-solo emite intenciones que pasan por la misma validación que las órdenes
-del jugador).
+trades de curva (2s10s, butterflies), memoria persistente de los agentes
+entre decisiones y score final (Sharpe, drawdown, P&L/DV01).
 
 Datos ficticios, proyecto educativo. No constituye asesoría de inversión.
 
 ---
-**Estructura de esta carpeta:** `index.html` + `assets/` son el sitio ya
-compilado (lo que se publica). El código fuente está en `codigo/` — para
-trabajarlo: `cd codigo && npm install && npm run dev`.
+**Estructura:** `index.html` + `assets/` = sitio compilado. `codigo/` = fuente
+(`cd codigo && npm install && npm run dev`). `DESPLIEGUE_IA.md` = cómo activar
+los agentes de IA para todos los visitantes.

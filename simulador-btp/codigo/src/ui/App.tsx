@@ -1,6 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { newSim, tick, execute, nodeYield } from '../engine/sim';
 import { NODES, type SimState } from '../engine/types';
+import { AiDesk } from '../engine/ai/desk';
+import { DeepSeekClient, ProxyClient } from '../engine/ai/client';
+import { PROXY_URL } from '../config/ai';
 
 const fmt = (x: number, d = 2) => x.toLocaleString('es-PE', { minimumFractionDigits: d, maximumFractionDigits: d });
 const mm = (x: number) => (x / 1e6).toLocaleString('es-PE', { maximumFractionDigits: 2 });
@@ -8,7 +11,14 @@ const mm = (x: number) => (x / 1e6).toLocaleString('es-PE', { maximumFractionDig
 export default function App() {
   const [seed] = useState(() => Math.floor(Math.random() * 1e9));
   const simRef = useRef<SimState>(newSim(seed));
+  const deskRef = useRef((() => {
+    const d = new AiDesk();
+    if (PROXY_URL) d.setClient(new ProxyClient(PROXY_URL));   // IA activa para todos
+    return d;
+  })());
   const [, force] = useState(0);
+  const [showCfg, setShowCfg] = useState(false);
+  const [apiKey, setApiKey] = useState('');
   const [nominal, setNominal] = useState('10');
   const [sel, setSel] = useState('SOB2037');
   const [msg, setMsg] = useState('');
@@ -17,7 +27,10 @@ export default function App() {
     const id = setInterval(() => {
       const s = simRef.current;
       if (s.speed === 0) return;
-      for (let i = 0; i < s.speed; i++) tick(s);
+      for (let i = 0; i < s.speed; i++) {
+        tick(s);
+        deskRef.current.step(s, (side, tk, nom, who) => execute(s, side, tk, nom, who));
+      }
       force(x => x + 1);
     }, 1000);
     return () => clearInterval(id);
@@ -46,6 +59,10 @@ export default function App() {
               {v === 0 ? '⏸' : `${v}x`}</button>
           ))}
         </div>
+        <button className={`aibtn ${deskRef.current.active ? 'on' : ''}`}
+                onClick={() => setShowCfg(true)}>
+          IA {deskRef.current.active ? '● ON' : '○ OFF'}
+        </button>
         <div className="pnl">
           <span>NAV <b>PEN {mm(s.totals.nav)}mm</b></span>
           <span className={s.totals.dailyPnl >= 0 ? 'up' : 'dn'}>Día {s.totals.dailyPnl >= 0 ? '+' : ''}{mm(s.totals.dailyPnl)}mm</span>
@@ -123,6 +140,9 @@ export default function App() {
           <table>
             <thead><tr><th>Bono</th><th>Nominal</th><th>P.Prom</th><th>P.Mkt</th><th>P&L no real.</th></tr></thead>
             <tbody>
+              {Object.entries(s.portfolio.positions).filter(([,p]) => p.nominal > 0).length === 0 && (
+                <tr><td colSpan={5} className="dim">Sin posiciones — usa el ticket para operar</td></tr>
+              )}
               {Object.entries(s.portfolio.positions).filter(([,p]) => p.nominal > 0).map(([tk, p]) => {
                 const b = s.bonds.find(x => x.ticker === tk)!;
                 const upl = (b.price - p.avgPrice) / 100 * p.nominal;
@@ -137,6 +157,32 @@ export default function App() {
             </tbody>
           </table>
           <div className="dim" style={{marginTop: 6}}>Realizado: PEN {mm(s.portfolio.realizedTotal)}mm</div>
+        </section>
+
+        <section className="panel aidesk">
+          <h2>AI DESK <span className="dim">
+            {deskRef.current.active
+              ? `${deskRef.current.client?.name} · ${deskRef.current.calls} consultas`
+              : 'inactivo — agentes por reglas'}</span></h2>
+          {deskRef.current.log.length === 0 && (
+            <div className="dim">
+              {deskRef.current.active
+                ? 'Esperando la primera decisión de los agentes…'
+                : 'Activa la IA en el botón del encabezado para que tres agentes institucionales razonen sus operaciones con un modelo de lenguaje.'}
+            </div>
+          )}
+          {deskRef.current.log.slice(0, 6).map((e, i) => (
+            <div key={i} className="deskrow">
+              <div>
+                <b className="agent">{e.agent}</b>
+                <span className={`act ${e.action}`}>{e.action}</span>
+                {e.bond && <span> {e.bond} {e.sizeMM.toFixed(0)}mm</span>}
+                <span className="dim"> conv {(e.conviction * 100).toFixed(0)}%</span>
+                {!e.executed && e.action !== 'HOLD' && <span className="rej"> rechazado</span>}
+              </div>
+              <div className="dim reason">{e.reason}</div>
+            </div>
+          ))}
         </section>
 
         <section className="panel attr">
@@ -155,6 +201,52 @@ export default function App() {
           <div className="dim" style={{marginTop: 8}}>Próximo CPI: consenso {s.cpiConsensus.toFixed(1)}%</div>
         </section>
       </div>
+      {showCfg && (
+        <div className="modal" onClick={() => setShowCfg(false)}>
+          <div className="modalbox" onClick={e => e.stopPropagation()}>
+            <h3>Agentes con IA</h3>
+            <p className="dim">
+              Tres agentes institucionales (Offshore Macro, Hedge RV y AFP Alfa) pueden
+              razonar sus decisiones con un modelo de lenguaje en vez de reglas fijas.
+              El modelo <b>no fija precios</b>: solo emite intenciones que pasan por la
+              misma validación que tus órdenes.
+            </p>
+            <p className="dim">
+              Tu API key se guarda <b>solo en la memoria de esta pestaña</b>. No viaja a
+              ningún servidor propio ni queda en el código. Al cerrar la pestaña se borra.
+            </p>
+            {PROXY_URL && (
+              <p className="dim">
+                Esta demo ya viene con los agentes de IA activos mediante un proxy con
+                cupo limitado: no necesitas key. Si el cupo diario se agota, puedes usar
+                la tuya abajo.
+              </p>
+            )}
+            <input type="password" placeholder="API key de DeepSeek (sk-...) — opcional"
+                   value={apiKey} onChange={e => setApiKey(e.target.value)} />
+            <div className="modalbtns">
+              <button className="buy" onClick={() => {
+                deskRef.current.setClient(
+                  apiKey.trim() ? new DeepSeekClient(apiKey.trim())
+                  : PROXY_URL ? new ProxyClient(PROXY_URL) : null);
+                setShowCfg(false); force(x => x + 1);
+              }}>Activar</button>
+              <button onClick={() => {
+                deskRef.current.setClient(null); setApiKey('');
+                setShowCfg(false); force(x => x + 1);
+              }}>Desactivar</button>
+            </div>
+            {deskRef.current.errors > 0 && (
+              <p className="dim" style={{marginTop:10}}>
+                {deskRef.current.errors} consultas fallidas — si son todas, probablemente el
+                navegador bloquea la llamada (CORS) o la key es inválida. Los agentes siguen
+                operando con sus reglas heurísticas.
+              </p>
+            )}
+          </div>
+        </div>
+      )}
+
       <footer className="dim">
         Motor cuantitativo determina precios · agentes (AFP, aseguradora, offshore, banco) operan por reglas ·
         semilla {s.seed} · proyecto educativo, datos ficticios

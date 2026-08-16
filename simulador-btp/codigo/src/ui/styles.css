@@ -23,13 +23,36 @@ header { display:flex; gap:22px; align-items:center; flex-wrap:wrap;
 
 .grid { display:grid; gap:10px; padding:10px 16px; flex:1;
   grid-template-columns:1.15fr 1fr 0.85fr;
-  grid-template-areas:"curve bonds news" "port tape macro" "attr tape macro"; }
+  grid-template-areas:"curve bonds news" "port tape macro" "attr aidesk macro"; }
 .panel { background:var(--panel); border:1px solid var(--line); border-radius:6px;
   padding:10px 12px; overflow:auto; min-height:230px; }
 .panel h2 { margin:0 0 8px; font-size:11px; letter-spacing:.12em; color:var(--acc); }
 .curve { grid-area:curve; } .bonds { grid-area:bonds; } .news { grid-area:news; }
 .port { grid-area:port; } .tape { grid-area:tape; } .macro { grid-area:macro; }
 .attr { grid-area:attr; min-height:180px; }
+.aidesk { grid-area:aidesk; }
+.deskrow { border-bottom:1px solid var(--line); padding:6px 0; }
+.deskrow .agent { color:var(--acc); }
+.act { margin-left:8px; padding:0 6px; border-radius:3px; font-size:11px; }
+.act.BUY { background:#153226; color:var(--up); }
+.act.SELL { background:#3a1720; color:var(--dn); }
+.act.HOLD { background:#20242e; color:var(--dim); }
+.rej { color:var(--dn); font-size:11px; }
+.reason { font-size:11px; margin-top:2px; }
+.aibtn { background:var(--panel); color:var(--dim); border:1px solid var(--line);
+  padding:3px 12px; cursor:pointer; font:inherit; border-radius:3px; }
+.aibtn.on { border-color:var(--up); color:var(--up); }
+.modal { position:fixed; inset:0; background:#000a; display:flex;
+  align-items:center; justify-content:center; z-index:50; }
+.modalbox { background:var(--panel); border:1px solid var(--line); border-radius:8px;
+  padding:22px; max-width:520px; }
+.modalbox h3 { margin:0 0 10px; color:var(--acc); }
+.modalbox p { font-size:12px; line-height:1.5; }
+.modalbox input { width:100%; background:#0d1117; color:var(--ink);
+  border:1px solid var(--line); padding:8px; font:inherit; margin-top:8px; }
+.modalbtns { display:flex; gap:8px; margin-top:12px; }
+.modalbtns button { padding:6px 16px; font:inherit; cursor:pointer;
+  border:1px solid var(--line); border-radius:3px; background:var(--bg); color:var(--ink); }
 .attr-row { display:flex; align-items:center; gap:8px; margin:5px 0; }
 .attr-k { width:96px; color:var(--dim); font-size:11px; }
 .attr-track { position:relative; flex:1; height:14px; background:#0d1117;
@@ -78,5 +101,5 @@ tr.sel td { background:#182131; }
 footer { padding:8px 16px; border-top:1px solid var(--line); font-size:11px; }
 @media (max-width: 1100px) {
   .grid { grid-template-columns:1fr;
-    grid-template-areas:"curve" "bonds" "port" "attr" "news" "tape" "macro"; }
+    grid-template-areas:"curve" "bonds" "port" "attr" "aidesk" "news" "tape" "macro"; }
 }
