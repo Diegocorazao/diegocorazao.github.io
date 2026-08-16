@@ -42,10 +42,37 @@ describe('AiDesk', () => {
   it('ejecuta decisiones pendientes respetando el techo del agente', () => {
     const s = newSim(22); const desk = new AiDesk();
     desk.pending.push({
-      cfg: { id:'X', name:'Offshore Macro Fund', mandate:'', limits:'', maxTicketMM: 40, everyTicks: 10 },
+      cfg: { id:'X', name:'PIMCO EM', mandate:'', limits:'', maxTicketMM: 40,
+             everyTicks: 10, reactMM: 30, reactCooldown: 50 },
       d: { action:'SELL', bond:'SOB2037', sizeMM: 500, urgency:1, conviction:1, view:'v', reason:'r' },
+      reacting: false,
     });
     desk.step(s, (a, b, c, d) => execute(s, a, b, c, d));
     expect(desk.log[0].sizeMM).toBe(40);      // recortado al límite del mandato
+  });
+});
+
+describe('reacción a las operaciones del jugador', () => {
+  it('registra las operaciones del jugador en el estado', () => {
+    const s = newSim(31);
+    execute(s, 'BUY', 'SOB2037', 45e6, 'PLAYER');
+    expect(s.playerTrades.length).toBe(1);
+    expect(s.playerTrades[0].mm).toBe(45);
+    expect(s.playerTrades[0].side).toBe('BUY');
+  });
+  it('no registra las operaciones de los agentes', () => {
+    const s = newSim(32);
+    execute(s, 'SELL', 'SOB2034', 20e6, 'BANCO');
+    expect(s.playerTrades.length).toBe(0);
+  });
+  it('una operación grande del jugador encola reacciones de la IA', async () => {
+    const s = newSim(33); const desk = new AiDesk();
+    let consultas = 0;
+    desk.setClient({ name: 'test', async decide() { consultas++; return null; } });
+    tick(s);
+    execute(s, 'BUY', 'SOB2040', 90e6, 'PLAYER');   // sobre el umbral de los tres
+    desk.step(s, () => ({ ok: true }));
+    await new Promise(r => setTimeout(r, 10));
+    expect(consultas).toBeGreaterThan(0);
   });
 });

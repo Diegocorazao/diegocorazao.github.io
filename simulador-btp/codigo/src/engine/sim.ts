@@ -55,7 +55,7 @@ export function newSim(seed: number): SimState {
     curve: { ns, nsFair: { ...ns }, residual, prevDay: {} },
     bonds,
     portfolio: { cash: 100e6, positions: {}, realizedTotal: 0, startNav: 100e6 },
-    tape: [], news: [],
+    tape: [], news: [], playerTrades: [],
     pendingCpiTick: 120 + Math.floor(rng() * 60),
     cpiConsensus: 3.2,
     dailyPnlBase: 100e6,
@@ -153,6 +153,8 @@ export function execute(s: SimState, side: 'BUY'|'SELL', ticker: string,
     }
     s.portfolio.cash += cashDelta;
     s.portfolio.positions[ticker] = pos;
+    s.playerTrades.unshift({ t: s.t, side, ticker, mm: nominal / 1e6, yield: execY });
+    if (s.playerTrades.length > 12) s.playerTrades.pop();
   }
 
   // impacto de mercado: 60% al residual del nodo, 40% al nivel NS ponderado
@@ -178,36 +180,43 @@ function tape(s: SimState, text: string, kind: TapeEntry['kind']) {
 interface AgentCtx { mem: { mom: number[]; insurerCd: number; afpCd: number } }
 
 function agentsAct(s: SimState, rng: Rng, ctx: AgentCtx) {
+  // Estos agentes NO consumen IA: son reglas rápidas que dan vida al mercado
+  // entre las decisiones (lentas) de los agentes institucionales grandes.
   const y10 = nodeYield(s, 10);
   ctx.mem.mom.push(y10); if (ctx.mem.mom.length > 20) ctx.mem.mom.shift();
 
-  // OFFSHORE MACRO: momentum en 10Y con probabilidad
-  if (ctx.mem.mom.length >= 12 && rng() < 0.06) {
-    const chg = (y10 - ctx.mem.mom[0]) * 100;
-    if (Math.abs(chg) > 2.5) {
-      const side = chg > 0 ? 'SELL' : 'BUY';
-      const size = (8 + rng() * 25) * 1e6;
-      execute(s, side, rng() < 0.5 ? 'SOB2034' : 'SOB2037', size, 'OFFSHORE');
+  // HEDGE FUND RV: arbitra dislocaciones de nodo contra Nelson-Siegel
+  let peorNodo = 10, peorRes = 0;
+  for (const n of NODES) {
+    if (Math.abs(s.curve.residual[n]) > Math.abs(peorRes)) {
+      peorRes = s.curve.residual[n]; peorNodo = n;
     }
   }
-  // ASEGURADORA: comprador natural del ultra largo sobre su tasa ALM
-  ctx.mem.insurerCd = Math.max(0, ctx.mem.insurerCd - 1);
-  const y30 = nodeYield(s, 30);
-  if (y30 > 7.45 && ctx.mem.insurerCd === 0 && rng() < 0.25) {
-    execute(s, 'BUY', rng() < 0.6 ? 'SOB2055' : 'SOB2050', (5 + rng() * 12) * 1e6, 'INSURER');
-    ctx.mem.insurerCd = 25;
+  if (Math.abs(peorRes) > 3.2 && rng() < 0.12) {
+    const b = s.bonds.reduce((a, x) =>
+      Math.abs(x.node - peorNodo) < Math.abs(a.node - peorNodo) ? x : a, s.bonds[0]);
+    // residual positivo = nodo barato (yield alto) → compra
+    execute(s, peorRes > 0 ? 'BUY' : 'SELL', b.ticker, (6 + rng() * 14) * 1e6, 'HEDGE RV');
   }
-  // AFP: compra caídas del belly con paciencia
-  ctx.mem.afpCd = Math.max(0, ctx.mem.afpCd - 1);
-  const res10 = s.curve.residual[10];
-  if (res10 > 4.5 && ctx.mem.afpCd === 0 && rng() < 0.3) {
-    execute(s, 'BUY', 'SOB2037', (10 + rng() * 30) * 1e6, 'AFP');
-    ctx.mem.afpCd = 30;
+
+  // FONDO MUTUO: procíclico, sigue el momentum con retraso
+  if (ctx.mem.mom.length >= 15 && rng() < 0.07) {
+    const chg = (y10 - ctx.mem.mom[0]) * 100;
+    if (Math.abs(chg) > 3.5) {
+      const b = s.bonds[2 + Math.floor(rng() * 3)];
+      execute(s, chg > 0 ? 'SELL' : 'BUY', b.ticker, (4 + rng() * 10) * 1e6, 'FONDO MUTUO');
+    }
   }
-  // BANCO: ruido de cotización / inventario
-  if (rng() < 0.05) {
+
+  // BANCO: cotiza inventario y da liquidez; opera chico y seguido
+  if (rng() < 0.09) {
     const b = s.bonds[Math.floor(rng() * s.bonds.length)];
-    tape(s, `Bank ${rng() < 0.5 ? 'bids' : 'offers'} ${b.ticker} @ ${(rng() < 0.5 ? b.bidY : b.askY).toFixed(2)}%`, 'quote');
+    if (rng() < 0.45) {
+      execute(s, rng() < 0.5 ? 'BUY' : 'SELL', b.ticker, (2 + rng() * 6) * 1e6, 'BANCO');
+    } else {
+      tape(s, `Banco ${rng() < 0.5 ? 'bids' : 'offers'} ${b.ticker} @ ` +
+              `${(rng() < 0.5 ? b.bidY : b.askY).toFixed(2)}%`, 'quote');
+    }
   }
 }
 

@@ -47,6 +47,11 @@ export interface Portfolio {
 
 export interface TapeEntry { t: number; text: string; kind: 'flow'|'quote'|'move'|'news' }
 
+/** Operaciones del jugador: los agentes de IA las observan y reaccionan. */
+export interface PlayerTrade {
+  t: number; side: 'BUY'|'SELL'; ticker: string; mm: number; yield: number;
+}
+
 export interface NewsItem {
   t: number; headline: string; body?: string;
   kind: 'macro'|'event'|'flow';
@@ -73,6 +78,7 @@ export interface SimState {
   bonds: Bond[];
   portfolio: Portfolio;
   tape: TapeEntry[];
+  playerTrades: PlayerTrade[];
   news: NewsItem[];
   pendingCpiTick: number;  // próximo dato de inflación
   cpiConsensus: number;
@@ -81,4 +87,7 @@ export interface SimState {
   attr: { carry: number; rolldown: number; rates: number; curve: number; execution: number };
 }
 
-export const MIN_PER_DAY = 390;   // 9:00 - 15:30 hora Lima aprox.
+// Duración de la jornada en ticks (1 tick = 1 minuto simulado).
+// A 1x un día toma ~8 min reales; a 5x ~1.6 min; a 20x ~24 s.
+// Sube este número si quieres jornadas más largas.
+export const MIN_PER_DAY = 480;   // 9:00 - 17:00 hora Lima

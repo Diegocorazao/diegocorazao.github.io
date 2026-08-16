@@ -162,13 +162,13 @@ export default function App() {
         <section className="panel aidesk">
           <h2>AI DESK <span className="dim">
             {deskRef.current.active
-              ? `${deskRef.current.client?.name} · ${deskRef.current.calls} consultas`
-              : 'inactivo — agentes por reglas'}</span></h2>
+              ? `${deskRef.current.client?.name} · ${deskRef.current.calls} consultas · AFP · Seguros · PIMCO`
+              : 'inactivo — todos los agentes por reglas'}</span></h2>
           {deskRef.current.log.length === 0 && (
             <div className="dim">
               {deskRef.current.active
                 ? 'Esperando la primera decisión de los agentes…'
-                : 'Activa la IA en el botón del encabezado para que tres agentes institucionales razonen sus operaciones con un modelo de lenguaje.'}
+                : 'Activa la IA en el encabezado para que AFP, Seguros y PIMCO razonen sus operaciones con un modelo de lenguaje. Banco, fondo mutuo y hedge RV siempre operan por reglas.'}
             </div>
           )}
           {deskRef.current.log.slice(0, 6).map((e, i) => (
@@ -178,6 +178,7 @@ export default function App() {
                 <span className={`act ${e.action}`}>{e.action}</span>
                 {e.bond && <span> {e.bond} {e.sizeMM.toFixed(0)}mm</span>}
                 <span className="dim"> conv {(e.conviction * 100).toFixed(0)}%</span>
+                {e.reacting && <span className="react"> ↩ reacciona a tu operación</span>}
                 {!e.executed && e.action !== 'HOLD' && <span className="rej"> rechazado</span>}
               </div>
               <div className="dim reason">{e.reason}</div>

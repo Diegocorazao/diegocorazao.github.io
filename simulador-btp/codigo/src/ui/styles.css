@@ -38,6 +38,7 @@ header { display:flex; gap:22px; align-items:center; flex-wrap:wrap;
 .act.SELL { background:#3a1720; color:var(--dn); }
 .act.HOLD { background:#20242e; color:var(--dim); }
 .rej { color:var(--dn); font-size:11px; }
+.react { color:var(--amber); font-size:11px; }
 .reason { font-size:11px; margin-top:2px; }
 .aibtn { background:var(--panel); color:var(--dim); border:1px solid var(--line);
   padding:3px 12px; cursor:pointer; font:inherit; border-radius:3px; }
